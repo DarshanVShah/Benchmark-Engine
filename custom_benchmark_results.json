@@ -1,0 +1,42 @@
+{
+  "model_info": {
+    "name": "CustomHF-7993",
+    "type": "huggingface",
+    "framework": "transformers",
+    "parameters": 525,
+    "loaded": true
+  },
+  "dataset_info": {
+    "name": "CustomImage-810",
+    "type": "image",
+    "num_samples": 248,
+    "image_size": [
+      224,
+      224
+    ],
+    "channels": 3,
+    "loaded": true,
+    "description": "Custom image dataset for computer vision benchmarks"
+  },
+  "benchmark_config": {
+    "num_samples": 15,
+    "warmup_runs": 2
+  },
+  "timing": {
+    "total_time": 0.2933802604675293,
+    "average_inference_time": 0.0195284366607666,
+    "min_inference_time": 0.01512765884399414,
+    "max_inference_time": 0.07405328750610352,
+    "throughput": 51.12818420740399
+  },
+  "metrics": {
+    "CustomLatency": {
+      "avg_latency_ms": 19.69,
+      "p50_latency_ms": 22.21,
+      "p95_latency_ms": 41.73,
+      "p99_latency_ms": 58.02,
+      "min_latency_ms": 13.48,
+      "max_latency_ms": 52.0
+    }
+  }
+}
