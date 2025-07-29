@@ -16,8 +16,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import time
 import random
 import numpy as np
-from typing import Dict, Any, List, Optional
-from core import BenchmarkEngine, BaseModelAdapter, BaseMetric, BaseDataset
+from typing import Dict, Any, List, Optional, Tuple
+from core import BenchmarkEngine, BaseModelAdapter, BaseMetric, BaseDataset, ModelType
 
 
 class CustomHuggingFaceAdapter(BaseModelAdapter):
@@ -32,6 +32,7 @@ class CustomHuggingFaceAdapter(BaseModelAdapter):
         self.model = None
         self.tokenizer = None
         self.model_name = "CustomHuggingFace"
+        self.config = {}
         
     def load(self, model_path: str) -> bool:
         """Load a HuggingFace model (simulated)."""
@@ -50,6 +51,19 @@ class CustomHuggingFaceAdapter(BaseModelAdapter):
         print(f"✓ HuggingFace model loaded: {self.model_name}")
         return True
     
+    def configure(self, config: Dict[str, Any]) -> bool:
+        """Configure model parameters."""
+        print(f"Configuring HuggingFace model with: {config}")
+        self.config.update(config)
+        return True
+    
+    def preprocess_input(self, sample: Any) -> Any:
+        """Convert dataset sample to HuggingFace input format."""
+        if isinstance(sample, dict) and "text" in sample:
+            # Simulate tokenization
+            return {"input_ids": [1, 2, 3, 4, 5], "attention_mask": [1, 1, 1, 1, 1]}
+        return sample
+    
     def run(self, inputs: Any) -> Any:
         """Run inference with HuggingFace model (simulated)."""
         if not self.model:
@@ -59,10 +73,17 @@ class CustomHuggingFaceAdapter(BaseModelAdapter):
         time.sleep(0.015)  # Simulate 15ms inference
         
         # Generate dummy predictions
-        if isinstance(inputs, dict) and "text" in inputs:
-            return f"hf_prediction_{random.randint(1, 100)}"
+        if isinstance(inputs, dict) and "input_ids" in inputs:
+            return {"logits": [random.uniform(0, 1) for _ in range(10)]}
         else:
-            return f"hf_prediction_{random.randint(1, 100)}"
+            return {"logits": [random.uniform(0, 1) for _ in range(10)]}
+    
+    def postprocess_output(self, model_output: Any) -> Any:
+        """Convert HuggingFace output to standardized format."""
+        if isinstance(model_output, dict) and "logits" in model_output:
+            # Simulate softmax and argmax
+            return random.randint(0, 9)
+        return model_output
     
     def get_model_info(self) -> Dict[str, Any]:
         """Return HuggingFace model information."""
@@ -71,8 +92,13 @@ class CustomHuggingFaceAdapter(BaseModelAdapter):
             "type": "huggingface",
             "framework": "transformers",
             "parameters": random.randint(100, 1000),  # Millions
-            "loaded": self.model is not None
+            "loaded": self.model is not None,
+            "config": self.config
         }
+    
+    def get_model_type(self) -> ModelType:
+        """Return the type of model for validation."""
+        return ModelType.HUGGINGFACE
 
 
 class CustomLatencyMetric(BaseMetric):
@@ -85,7 +111,7 @@ class CustomLatencyMetric(BaseMetric):
     def __init__(self):
         self.metric_name = "CustomLatency"
         
-    def calculate(self, predictions: Any, targets: Any, **kwargs) -> Dict[str, float]:
+    def calculate(self, predictions: List[Any], targets: List[Any], **kwargs) -> Dict[str, float]:
         """Calculate latency metrics."""
         # In a real implementation, you would extract timing data
         # from the benchmark results or measure it directly
@@ -107,6 +133,10 @@ class CustomLatencyMetric(BaseMetric):
     
     def get_name(self) -> str:
         return self.metric_name
+    
+    def validate_inputs(self, predictions: List[Any], targets: List[Any]) -> bool:
+        """Validate that inputs are compatible with this metric."""
+        return len(predictions) == len(targets) and len(predictions) > 0
 
 
 class CustomImageDataset(BaseDataset):
@@ -141,14 +171,19 @@ class CustomImageDataset(BaseDataset):
         return True
     
     def get_samples(self, num_samples: Optional[int] = None) -> List[Any]:
-        """Generate synthetic image samples."""
+        """Generate synthetic image samples (for compatibility)."""
+        samples_with_targets = self.get_samples_with_targets(num_samples)
+        return [sample for sample, _ in samples_with_targets]
+    
+    def get_samples_with_targets(self, num_samples: Optional[int] = None) -> List[Tuple[Any, Any]]:
+        """Generate synthetic image samples with targets."""
         if not self.dataset_loaded:
             raise RuntimeError("Dataset not loaded")
         
         samples_to_generate = num_samples if num_samples is not None else self.num_samples
         samples_to_generate = min(samples_to_generate, self.num_samples)
         
-        samples = []
+        samples_with_targets = []
         for i in range(samples_to_generate):
             # Simulate image data
             sample = {
@@ -156,15 +191,18 @@ class CustomImageDataset(BaseDataset):
                 "path": f"/path/to/image_{i:04d}.jpg",
                 "size": self.image_size,
                 "channels": 3,
-                "label": random.randint(0, 999),  # ImageNet-style labels
                 "metadata": {
                     "format": "JPEG",
                     "source": "custom_image_dataset"
                 }
             }
-            samples.append(sample)
+            
+            # Create target (ImageNet-style label)
+            target = random.randint(0, 999)
+            
+            samples_with_targets.append((sample, target))
         
-        return samples
+        return samples_with_targets
     
     def get_dataset_info(self) -> Dict[str, Any]:
         """Return image dataset information."""
@@ -177,45 +215,49 @@ class CustomImageDataset(BaseDataset):
             "loaded": self.dataset_loaded,
             "description": "Custom image dataset for computer vision benchmarks"
         }
+    
+    def get_input_shape(self) -> Tuple[int, ...]:
+        """Return the expected input shape for models."""
+        return (3,) + self.image_size  # (channels, height, width)
 
 
 def main():
     """Demonstrate custom plugins."""
     
-    print("🔧 Custom Plugins Demo")
+    print("Custom Plugins Demo")
     print("=" * 50)
     
     # Create engine
     engine = BenchmarkEngine()
     
     # Register custom plugins
-    print("\n📦 Registering custom plugins...")
+    print("\nRegistering custom plugins...")
     engine.register_adapter("huggingface", CustomHuggingFaceAdapter)
     engine.register_metric("latency", CustomLatencyMetric)
     engine.register_dataset("images", CustomImageDataset)
     
     # Load model and dataset
-    print("\n🔧 Loading custom model and dataset...")
+    print("\Loading custom model and dataset...")
     engine.load_model("huggingface", "bert-base-uncased")
     engine.load_dataset("images", "/path/to/image/dataset")
     
     # Add custom metrics
-    print("\n📊 Adding custom metrics...")
+    print("\nAdding custom metrics...")
     engine.add_metric("latency")
     
     # Run benchmark
-    print("\n⚡ Running benchmark with custom plugins...")
+    print("\nRunning benchmark with custom plugins...")
     results = engine.run_benchmark(num_samples=15, warmup_runs=2)
     
     # Display results
-    print("\n📈 Results:")
+    print("\nResults:")
     engine.print_results()
     
     # Export results
-    print("\n💾 Exporting results...")
+    print("\nExporting results...")
     engine.export_results("custom_benchmark_results.json", format="json")
     
-    print("\n✅ Custom plugins benchmark completed!")
+    print("\nCustom plugins benchmark completed!")
     print("\nThis demonstrates how easy it is to extend the framework!")
     print("You can create your own adapters, metrics, and datasets")
     print("by implementing the abstract interfaces.")

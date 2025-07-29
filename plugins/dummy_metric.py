@@ -6,7 +6,7 @@ actual ground truth data.
 """
 
 import random
-from typing import Dict, Any
+from typing import Dict, Any, List
 from core import BaseMetric
 
 
@@ -21,20 +21,20 @@ class DummyAccuracyMetric(BaseMetric):
     def __init__(self):
         self.metric_name = "DummyAccuracy"
         
-    def calculate(self, predictions: Any, targets: Any, **kwargs) -> Dict[str, float]:
+    def calculate(self, predictions: List[Any], targets: List[Any], **kwargs) -> Dict[str, float]:
         """
         Calculate dummy accuracy metrics.
         
         Args:
-            predictions: Model predictions (ignored in dummy implementation)
-            targets: Ground truth targets (ignored in dummy implementation)
+            predictions: Model predictions
+            targets: Ground truth targets
             **kwargs: Additional arguments
             
         Returns:
             Dictionary containing accuracy metrics
         """
         # Simulate accuracy calculation
-        num_predictions = len(predictions) if hasattr(predictions, '__len__') else 1
+        num_predictions = len(predictions)
         
         # Generate realistic-looking accuracy metrics
         base_accuracy = random.uniform(0.7, 0.95)  # 70-95% accuracy
@@ -57,4 +57,30 @@ class DummyAccuracyMetric(BaseMetric):
         Returns:
             Metric name
         """
-        return self.metric_name 
+        return self.metric_name
+    
+    def validate_inputs(self, predictions: List[Any], targets: List[Any]) -> bool:
+        """
+        Validate that inputs are compatible with this metric.
+        
+        Args:
+            predictions: Model predictions
+            targets: Ground truth targets
+            
+        Returns:
+            True if inputs are valid for this metric
+        """
+        # Basic validation
+        if not predictions or not targets:
+            return False
+        
+        if len(predictions) != len(targets):
+            return False
+        
+        # For dummy metric, we accept any inputs
+        # In real metrics, you would check:
+        # - Predictions are the right type (e.g., probabilities for classification)
+        # - Targets are the right type (e.g., integers for classification)
+        # - Predictions and targets have compatible shapes
+        
+        return True 

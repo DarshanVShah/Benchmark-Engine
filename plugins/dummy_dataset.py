@@ -6,7 +6,7 @@ actual dataset files.
 """
 
 import random
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from core import BaseDataset
 
 
@@ -46,13 +46,27 @@ class DummyDataset(BaseDataset):
     
     def get_samples(self, num_samples: Optional[int] = None) -> List[Any]:
         """
-        Generate synthetic samples.
+        Generate synthetic samples (for compatibility).
         
         Args:
             num_samples: Number of samples to generate (None = all available)
             
         Returns:
             List of synthetic samples
+        """
+        # For compatibility, return samples without targets
+        samples_with_targets = self.get_samples_with_targets(num_samples)
+        return [sample for sample, _ in samples_with_targets]
+    
+    def get_samples_with_targets(self, num_samples: Optional[int] = None) -> List[Tuple[Any, Any]]:
+        """
+        Generate synthetic samples with targets.
+        
+        Args:
+            num_samples: Number of samples to generate (None = all available)
+            
+        Returns:
+            List of (sample, target) tuples
         """
         if not self.dataset_loaded:
             raise RuntimeError("Dataset not loaded. Call load() first.")
@@ -61,22 +75,25 @@ class DummyDataset(BaseDataset):
         samples_to_generate = num_samples if num_samples is not None else self.num_samples
         samples_to_generate = min(samples_to_generate, self.num_samples)
         
-        # Generate synthetic samples
-        samples = []
+        # Generate synthetic samples with targets
+        samples_with_targets = []
         for i in range(samples_to_generate):
             # Create a synthetic sample with random features
             sample = {
                 "id": f"sample_{i:04d}",
                 "features": [random.uniform(0, 1) for _ in range(self.sample_size)],
-                "label": random.randint(0, 9),  # 10-class classification
                 "metadata": {
                     "source": "dummy",
                     "timestamp": f"2024-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}"
                 }
             }
-            samples.append(sample)
+            
+            # Create a synthetic target (10-class classification)
+            target = random.randint(0, 9)
+            
+            samples_with_targets.append((sample, target))
         
-        return samples
+        return samples_with_targets
     
     def get_dataset_info(self) -> Dict[str, Any]:
         """
@@ -92,4 +109,15 @@ class DummyDataset(BaseDataset):
             "sample_size": self.sample_size,
             "loaded": self.dataset_loaded,
             "description": "Synthetic dataset for testing the BenchmarkEngine framework"
-        } 
+        }
+    
+    def get_input_shape(self) -> Tuple[int, ...]:
+        """
+        Return the expected input shape for models.
+        
+        Returns:
+            Tuple representing the input shape
+        """
+        # For dummy dataset, return a simple shape
+        # In real datasets, this would be the actual input dimensions
+        return (self.sample_size,) 
