@@ -92,14 +92,14 @@ class HuggingFaceAdapter(BaseModelAdapter):
             # Get model info
             self.model_name = model_path.split("/")[-1]  # Extract model name from path
             
-            print(f"✓ HuggingFace model loaded: {self.model_name}")
+            print(f"HuggingFace model loaded: {self.model_name}")
             print(f"  Model type: {self.model_type}")
             print(f"  Parameters: {self.model.num_parameters():,}")
             
             return True
             
         except Exception as e:
-            print(f"❌ Failed to load HuggingFace model: {e}")
+            print(f"Failed to load HuggingFace model: {e}")
             return False
     
     def configure(self, config: Dict[str, Any]) -> bool:
@@ -155,7 +155,7 @@ class HuggingFaceAdapter(BaseModelAdapter):
             return True
             
         except Exception as e:
-            print(f"❌ Failed to configure HuggingFace model: {e}")
+            print(f"Failed to configure HuggingFace model: {e}")
             return False
     
     def preprocess_input(self, sample: Any) -> Any:
@@ -200,7 +200,7 @@ class HuggingFaceAdapter(BaseModelAdapter):
             return inputs
             
         except Exception as e:
-            print(f"❌ Failed to preprocess input: {e}")
+            print(f"Failed to preprocess input: {e}")
             # Return a safe fallback
             return self.tokenizer(
                 "fallback text",
@@ -231,7 +231,7 @@ class HuggingFaceAdapter(BaseModelAdapter):
             return outputs
             
         except Exception as e:
-            print(f"❌ Failed to run inference: {e}")
+            print(f"Failed to run inference: {e}")
             # Return a safe fallback output
             return {"logits": torch.zeros(1, 2)}  # Binary classification fallback
     
@@ -283,7 +283,7 @@ class HuggingFaceAdapter(BaseModelAdapter):
                 return {"raw_output": str(model_output)}
                 
         except Exception as e:
-            print(f"❌ Failed to postprocess output: {e}")
+            print(f"Failed to postprocess output: {e}")
             return {"error": str(e)}
     
     def get_model_info(self) -> Dict[str, Any]:

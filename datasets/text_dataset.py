@@ -69,7 +69,7 @@ class TextDataset(BaseDataset):
         self.num_samples = random.randint(50, 200)
         self.dataset_loaded = True
         
-        print(f"✓ Text dataset loaded: {self.dataset_name} ({self.num_samples} samples)")
+        print(f"  Text dataset loaded: {self.dataset_name} ({self.num_samples} samples)")
         print(f"  Classes: {self.num_classes} (binary classification)")
         print(f"  Max length: {self.max_length} characters")
         
