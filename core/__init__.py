@@ -213,9 +213,9 @@ class BenchmarkEngine:
         dataset_info = self.dataset.get_dataset_info()
         
         # Basic validation - could be extended with more sophisticated checks
-        print(f"✓ Model type: {model_type.value}")
-        print(f"✓ Dataset type: {dataset_info.get('type', 'unknown')}")
-        print(f"✓ Metrics: {[m.get_name() for m in self.metrics]}")
+        print(f"Model type: {model_type.value}")
+        print(f"Dataset type: {dataset_info.get('type', 'unknown')}")
+        print(f"Metrics: {[m.get_name() for m in self.metrics]}")
         
         return True
     

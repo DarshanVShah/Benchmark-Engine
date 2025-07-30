@@ -7,7 +7,8 @@ detect the appropriate format for benchmarking.
 
 import random
 from typing import Dict, Any, List, Optional, Tuple
-from datasets import load_dataset
+# Use absolute import to avoid conflict with local datasets package
+import datasets as hf_datasets
 from core import BaseDataset
 
 
@@ -39,7 +40,7 @@ class HuggingFaceDataset(BaseDataset):
             print(f"Loading HuggingFace dataset: {dataset_path}")
             
             # Load dataset from HuggingFace
-            self.dataset = load_dataset(dataset_path)
+            self.dataset = hf_datasets.load_dataset(dataset_path)
             self.dataset_name = dataset_path
             
             # Get the train split (or default)
@@ -56,7 +57,7 @@ class HuggingFaceDataset(BaseDataset):
             self._auto_detect_format()
             
             self.dataset_loaded = True
-            print(f"✓ HuggingFace dataset loaded: {dataset_path}")
+            print(f"  HuggingFace dataset loaded: {dataset_path}")
             print(f"  Samples: {len(self.data)}")
             print(f"  Features: {list(self.data.features.keys())}")
             print(f"  Detected task: {self.task_type}")
@@ -66,7 +67,7 @@ class HuggingFaceDataset(BaseDataset):
             return True
             
         except Exception as e:
-            print(f"❌ Failed to load dataset {dataset_path}: {e}")
+            print(f" Failed to load dataset {dataset_path}: {e}")
             return False
     
     def _auto_detect_format(self):

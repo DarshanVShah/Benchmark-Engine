@@ -44,7 +44,7 @@ class DummyModelAdapter(BaseModelAdapter):
         self.model_size = random.randint(10, 100)  # MB
         self.model_loaded = True
         
-        print(f"✓ Dummy model loaded: {self.model_name} ({self.model_size}MB)")
+        print(f"Dummy model loaded: {self.model_name} ({self.model_size}MB)")
         return True
     
     def configure(self, config: Dict[str, Any]) -> bool:
@@ -72,7 +72,7 @@ class DummyModelAdapter(BaseModelAdapter):
         if "device" in config and config["device"] == "gpu":
             self.inference_delay = 0.005  # Faster on GPU
         
-        print(f"✓ Dummy model configured")
+        print(f" Dummy model configured")
         return True
     
     def preprocess_input(self, sample: Any) -> Any:
