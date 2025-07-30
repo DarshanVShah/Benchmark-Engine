@@ -21,7 +21,6 @@ def main():
     """Benchmark any HuggingFace dataset with minimal code."""
     
     print("Simple Any-Dataset Benchmark Demo")
-    print("=" * 50)
     print("No custom files needed - just specify the dataset name!")
     print()
     
@@ -29,7 +28,6 @@ def main():
     engine = BenchmarkEngine()
     
     # Register generic components (works with ANY dataset)
-    print("Registering generic components...")
     engine.register_adapter("huggingface", HuggingFaceAdapter)
     engine.register_metric("generic", GenericMetric)
     engine.register_dataset("huggingface", HuggingFaceDataset)
@@ -150,7 +148,7 @@ def demo_single_dataset():
 
 if __name__ == "__main__":
     try:
-        main()
+        #main()
         demo_single_dataset()
     except Exception as e:
         print(f"\nError running simple benchmark: {e}")

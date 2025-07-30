@@ -21,7 +21,7 @@ from metrics import AccuracyMetric
 def main():
     """Run a HuggingFace benchmark with real models."""
     
-    print(" HuggingFace Benchmark Demo")
+    print("HuggingFace Benchmark Demo")
     
     # Create the benchmark engine
     engine = BenchmarkEngine()
