@@ -91,7 +91,7 @@ def main():
         print(f"\n {model_config['name']} benchmark completed!")
         print(f"   Results saved to {output_name}_results.json and {output_name}_results.md")
     
-    print("\n🎉 All HuggingFace benchmarks completed!")
+    print("\n All HuggingFace benchmarks completed!")
     print("\nThis demonstrates:")
     print("   Real HuggingFace model loading")
     print("   Text preprocessing and tokenization")

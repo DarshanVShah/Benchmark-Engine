@@ -10,8 +10,10 @@ This package contains dataset loaders for various data types:
 
 from .dummy_dataset import DummyDataset
 from .text_dataset import TextDataset
+from .huggingface_dataset import HuggingFaceDataset
 
 __all__ = [
     'DummyDataset',
-    'TextDataset'
+    'TextDataset',
+    'HuggingFaceDataset'
 ] 

@@ -10,8 +10,10 @@ This package contains metric implementations for evaluating model performance:
 
 from .dummy_metric import DummyAccuracyMetric
 from .accuracy_metric import AccuracyMetric
+from .generic_metric import GenericMetric
 
 __all__ = [
     'DummyAccuracyMetric',
-    'AccuracyMetric'
+    'AccuracyMetric',
+    'GenericMetric'
 ] 
