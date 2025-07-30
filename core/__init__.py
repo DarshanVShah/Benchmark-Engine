@@ -510,14 +510,14 @@ def main():
         import sys
         import os
         sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-        from examples.basic_benchmark import main as run_basic
+        from examples.dummy_example import main as run_basic
         run_basic()
     elif args.custom:
         # Import and run custom example
         import sys
         import os
         sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-        from examples.custom_plugins import main as run_custom
+        from examples.hf_example import main as run_custom
         run_custom()
     else:
         print("BenchmarkEngine Framework")

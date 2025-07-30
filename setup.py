@@ -14,7 +14,7 @@ setup(
     description="A flexible, extensible framework for model benchmarking with plugin-based architecture",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/BenchmarkEngine",
+    url="https://github.com/DarshanVShah/BenchmarkEngine",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",

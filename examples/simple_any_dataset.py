@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core import BenchmarkEngine
 from plugins import HuggingFaceAdapter
-from datasets import HuggingFaceDataset
+from benchmark_datasets import HuggingFaceDataset
 from metrics import GenericMetric
 
 
@@ -152,10 +152,3 @@ if __name__ == "__main__":
         demo_single_dataset()
     except Exception as e:
         print(f"\nError running simple benchmark: {e}")
-        print("\nThis might be due to:")
-        print("  - Missing datasets library (pip install datasets)")
-        print("  - Network issues downloading datasets")
-        print("  - Dataset not available or requires authentication")
-        
-        print("\nTo install dependencies:")
-        print("  pip install datasets transformers torch numpy scikit-learn") 

@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import BenchmarkEngine
 from plugins import DummyModelAdapter
 from metrics import DummyAccuracyMetric
-from datasets import DummyDataset
+from benchmark_datasets import DummyDataset
 
 
 def main():
