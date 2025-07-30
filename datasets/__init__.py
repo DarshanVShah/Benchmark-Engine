@@ -15,5 +15,6 @@ from .huggingface_dataset import HuggingFaceDataset
 __all__ = [
     'DummyDataset',
     'TextDataset',
-    'HuggingFaceDataset'
+    'HuggingFaceDataset',
+    'LocalTextDataset'
 ] 

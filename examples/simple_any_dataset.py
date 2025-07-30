@@ -92,22 +92,22 @@ def main():
             engine.export_results(f"{output_name}_results.json", format="json")
             engine.export_results(f"{output_name}_results.md", format="markdown")
             
-            print(f"\n✅ {dataset_config['name']} benchmark completed!")
+            print(f"\n {dataset_config['name']} benchmark completed!")
             print(f"   Results saved to {output_name}_results.json and {output_name}_results.md")
             
         except Exception as e:
-            print(f"❌ Error with {dataset_config['name']}: {e}")
+            print(f" Error with {dataset_config['name']}: {e}")
             print("   (This is expected for some datasets that require special handling)")
             continue
     
     print(f"\n{'='*50}")
     print("Simple Any-Dataset Benchmark Completed!")
     print("\nKey Benefits:")
-    print("  ✅ No custom files needed")
-    print("  ✅ Works with ANY HuggingFace dataset")
-    print("  ✅ Auto-detects task type and metrics")
-    print("  ✅ Same interface for all datasets")
-    print("  ✅ Framework-agnostic design")
+    print("   No custom files needed")
+    print("   Works with ANY HuggingFace dataset")
+    print("   Auto-detects task type and metrics")
+    print("   Same interface for all datasets")
+    print("   Framework-agnostic design")
 
 
 def demo_single_dataset():
@@ -143,7 +143,7 @@ def demo_single_dataset():
     print("\nResults:")
     engine.print_results()
     
-    print("\n✅ Emotion detection benchmark completed!")
+    print("\n Emotion detection benchmark completed!")
     print("   The generic metric automatically detected VAD emotion detection")
     print("   and calculated appropriate correlation and MSE metrics!")
 
