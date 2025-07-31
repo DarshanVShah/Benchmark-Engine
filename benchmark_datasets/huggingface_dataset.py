@@ -110,7 +110,13 @@ class HuggingFaceDataset(BaseDataset):
             raise RuntimeError("Dataset not loaded")
         
         samples = []
-        data_subset = self.data[:num_samples] if num_samples else self.data
+        # Convert to list to ensure we get actual data rows
+        if hasattr(self.data, 'select'):
+            # Use select method for HuggingFace datasets
+            indices = list(range(min(num_samples or len(self.data), len(self.data))))
+            data_subset = self.data.select(indices)
+        else:
+            data_subset = self.data[:num_samples] if num_samples else self.data
         
         for item in data_subset:
             if self.text_column and self.text_column in item:
@@ -130,25 +136,44 @@ class HuggingFaceDataset(BaseDataset):
             raise RuntimeError("Dataset not loaded")
         
         samples_with_targets = []
-        data_subset = self.data[:num_samples] if num_samples else self.data
+        # Convert to list to ensure we get actual data rows
+        if hasattr(self.data, 'select'):
+            # Use select method for HuggingFace datasets
+            indices = list(range(min(num_samples or len(self.data), len(self.data))))
+            data_subset = self.data.select(indices)
+        else:
+            data_subset = self.data[:num_samples] if num_samples else self.data
         
         for item in data_subset:
-            # Extract text input
-            text = ""
-            if self.text_column and self.text_column in item:
-                text = item[self.text_column]
+            # Handle case where item might be a string or other format
+            if isinstance(item, str):
+                text = item
+                target = 0  # Default target for string items
+            elif isinstance(item, dict):
+                # Extract text input
+                text = ""
+                if self.text_column and self.text_column in item:
+                    text = item[self.text_column]
+                else:
+                    # Find first text field
+                    for key, value in item.items():
+                        if isinstance(value, str) and len(value) > 10:
+                            text = value
+                            break
+                
+                if not text:
+                    continue
+                
+                # Extract targets based on task type
+                target = self._extract_targets(item)
             else:
-                # Find first text field
-                for key, value in item.items():
-                    if isinstance(value, str) and len(value) > 10:
-                        text = value
-                        break
+                # Handle other formats
+                text = str(item)
+                target = 0
             
-            if not text:
+            # Skip if text is suspicious (column names)
+            if text in ['idx', 'sentence', 'label', 'text', 'content', 'input']:
                 continue
-            
-            # Extract targets based on task type
-            target = self._extract_targets(item)
             
             # Create input format
             input_sample = {"text": text[:self.max_length]}
