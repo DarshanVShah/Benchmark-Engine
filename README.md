@@ -34,24 +34,12 @@ results = engine.run_benchmark(num_samples=20)
 engine.export_results("results.json", format="json")
 ```
 
-## Project Structure
-
-```
-BenchmarkEngine/
-├── core/                    # Core framework
-├── plugins/                 # Plugin implementations
-├── examples/               # Usage examples
-└── README.md
-```
-
 ## Running Examples
 
 ```bash
 # Basic benchmark
 python examples/basic_benchmark.py
 
-# Custom plugins
-python examples/custom_plugins.py
 ```
 
 ## Creating Custom Plugins
@@ -60,8 +48,6 @@ The framework uses a plugin architecture, so you can easily add support for:
 - New model types (HuggingFace, TensorFlow Lite, ONNX, etc.)
 - New metrics (accuracy, latency, memory usage, etc.)
 - New datasets (ImageNet, GLUE, custom datasets, etc.)
-
-Check the `examples/custom_plugins.py` file to see how to create your own plugins.
 
 ## Why this approach?
 

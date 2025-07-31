@@ -23,7 +23,7 @@ class GenericMetric(BaseMetric):
     Users don't need custom metric files - this handles everything!
     """
     
-    def __init__(self):
+    def __init__(self): 
         self.name = "GenericMetric"
         self.task_type = "auto-detected"
         
