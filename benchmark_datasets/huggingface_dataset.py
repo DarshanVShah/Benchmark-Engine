@@ -9,7 +9,7 @@ import random
 from typing import Dict, Any, List, Optional, Tuple
 # Use absolute import to avoid conflict with local datasets package
 import datasets as hf_datasets
-from core import BaseDataset
+from core import BaseDataset, DataType
 
 
 class HuggingFaceDataset(BaseDataset):
@@ -33,6 +33,11 @@ class HuggingFaceDataset(BaseDataset):
         self.task_type = "auto-detected"
         self.text_column = None
         self.label_columns = []
+    
+    @property
+    def output_type(self) -> DataType:
+        """HuggingFace datasets output text."""
+        return DataType.TEXT
         
     def load(self, dataset_path: str) -> bool:
         """Load any dataset from HuggingFace Hub."""

@@ -7,7 +7,7 @@ load → run → collect → report
 
 # Import core types and interfaces
 from .types import ModelType, BenchmarkConfig
-from .interfaces import BaseModelAdapter, BaseMetric, BaseDataset
+from .interfaces import BaseModelAdapter, BaseMetric, BaseDataset, DataType, OutputType
 from .engine import BenchmarkEngine
 from .reporting import ResultReporter
 
@@ -50,6 +50,8 @@ __all__ = [
     'BaseDataset',
     'ModelType',
     'BenchmarkConfig',
+    'DataType',
+    'OutputType',
     'ResultReporter',
     'main'
 ] 
