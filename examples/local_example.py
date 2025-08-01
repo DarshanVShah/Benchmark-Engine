@@ -34,7 +34,7 @@ def main():
     
     # Configure benchmark parameters
     engine.configure_benchmark({
-        "num_samples": 1000,  # Larger sample for better accuracy
+        "num_samples": 100,  # Larger sample for better accuracy
         "warmup_runs": 3,    # Fewer warmup runs
         "batch_size": 1,      # Single sample inference
         "precision": "fp32",  # Full precision
