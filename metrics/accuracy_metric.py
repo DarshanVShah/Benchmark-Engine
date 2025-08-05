@@ -7,7 +7,7 @@ for text classification tasks.
 
 import numpy as np
 from typing import Dict, Any, List
-from core import BaseMetric
+from core import BaseMetric, OutputType
 
 
 class AccuracyMetric(BaseMetric):
@@ -28,6 +28,11 @@ class AccuracyMetric(BaseMetric):
     
     def __init__(self):
         self.metric_name = "Accuracy"
+    
+    @property
+    def expected_input_type(self) -> OutputType:
+        """Accuracy metric expects class IDs."""
+        return OutputType.CLASS_ID
         
     def calculate(self, predictions: List[Any], targets: List[Any], **kwargs) -> Dict[str, float]:
         """

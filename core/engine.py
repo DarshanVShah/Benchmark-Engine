@@ -98,6 +98,23 @@ class BenchmarkEngine:
         if not self.metrics:
             raise RuntimeError("No metrics configured")
         
+        # Validate model-dataset compatibility
+        if not self.model_adapter.validate_compatibility(self.dataset):
+            raise ValueError(
+                f"Model input type ({self.model_adapter.input_type.value}) "
+                f"does not match dataset output type ({self.dataset.output_type.value})"
+            )
+        
+        # Validate model-metrics compatibility
+        for metric in self.metrics:
+            if self.model_adapter.output_type != metric.expected_input_type:
+                raise ValueError(
+                    f"Model output type ({self.model_adapter.output_type.value}) "
+                    f"does not match metric expected type ({metric.expected_input_type.value})"
+                )
+        
+        return True
+        
         # Validate model type compatibility with dataset
         model_type = self.model_adapter.get_model_type()
         dataset_info = self.dataset.get_dataset_info()

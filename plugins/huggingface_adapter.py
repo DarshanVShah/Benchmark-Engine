@@ -18,7 +18,7 @@ from transformers import (
     AutoModelForTokenClassification, AutoModelForQuestionAnswering,
     pipeline, Pipeline
 )
-from core import BaseModelAdapter, ModelType
+from core import BaseModelAdapter, ModelType, DataType, OutputType
 
 
 class HuggingFaceAdapter(BaseModelAdapter):
@@ -49,6 +49,16 @@ class HuggingFaceAdapter(BaseModelAdapter):
         self.config = {}
         self.device = "cpu"
         self.task_type = "text-classification"  # Default task
+    
+    @property
+    def input_type(self) -> DataType:
+        """HuggingFace models expect text input."""
+        return DataType.TEXT
+    
+    @property
+    def output_type(self) -> OutputType:
+        """HuggingFace models output class IDs by default."""
+        return OutputType.CLASS_ID
         
     def load(self, model_path: str) -> bool:
         """
