@@ -3,9 +3,6 @@ TensorFlow Lite Benchmark Example
 
 This example demonstrates how to use the TensorFlow Lite adapter
 with the BenchmarkEngine framework.
-
-Note: This example uses a dummy TFLite model for demonstration.
-In practice, you would use actual TFLite model files.
 """
 
 import sys
@@ -55,13 +52,7 @@ def benchmark_tflite_text_classification():
     """
     Benchmark a TensorFlow Lite text classification model.
     """
-    print("=" * 60)
     print("TENSORFLOW LITE TEXT CLASSIFICATION BENCHMARK")
-    print("=" * 60)
-    print("Model: Dummy TFLite Text Classifier")
-    print("Dataset: SST-2 (Stanford Sentiment Treebank)")
-    print("Task: Binary sentiment classification")
-    print()
     
     # Create dummy model (in practice, use real TFLite files)
     model_path = create_dummy_tflite_model()
@@ -84,11 +75,9 @@ def benchmark_tflite_text_classification():
     })
     
     # 3. Load dataset
-    print("Loading SST-2 dataset...")
     engine.load_dataset("sst2", "sst2")
     
     # 4. Load TFLite model
-    print("Loading TensorFlow Lite model...")
     engine.load_model(
         "tflite", 
         model_path,
@@ -103,12 +92,9 @@ def benchmark_tflite_text_classification():
     engine.add_metric("accuracy")
     
     # 6. Run benchmark
-    print("\nRunning benchmark...")
     results = engine.run_benchmark()
     
     # 7. Display results
-    print("\nBenchmark Results:")
-    print("-" * 40)
     engine.print_results()
     
     # Clean up dummy model
@@ -123,13 +109,7 @@ def benchmark_tflite_image_classification():
     """
     Benchmark a TensorFlow Lite image classification model.
     """
-    print("\n" + "=" * 60)
     print("TENSORFLOW LITE IMAGE CLASSIFICATION BENCHMARK")
-    print("=" * 60)
-    print("Model: Dummy TFLite Image Classifier")
-    print("Dataset: Custom Image Dataset")
-    print("Task: Image classification")
-    print()
     
     # Create dummy image classification model
     import tensorflow as tf
@@ -153,7 +133,6 @@ def benchmark_tflite_image_classification():
     with open(model_path, 'wb') as f:
         f.write(tflite_model)
     
-    print(f"Created dummy image TFLite model: {model_path}")
     
     # User declares everything in main function
     engine = BenchmarkEngine()
@@ -173,7 +152,6 @@ def benchmark_tflite_image_classification():
     })
     
     # 3. Load TFLite model
-    print("Loading TensorFlow Lite image model...")
     engine.load_model(
         "tflite", 
         model_path,
@@ -198,56 +176,9 @@ def benchmark_tflite_image_classification():
     return None
 
 
-def demonstrate_tflite_features():
-    """
-    Demonstrate key features of the TFLite adapter.
-    """
-    print("\n" + "=" * 60)
-    print("TENSORFLOW LITE ADAPTER FEATURES")
-    print("=" * 60)
-    
-    # Create adapter instance
-    adapter = TensorFlowLiteAdapter()
-    
-    print("✅ Supported Features:")
-    print("  - Text classification models")
-    print("  - Image classification models") 
-    print("  - Regression models")
-    print("  - Custom input/output formats")
-    print("  - Automatic input/output shape detection")
-    print("  - Optional tokenizer integration")
-    print("  - Memory-efficient inference")
-    print("  - Cross-platform compatibility")
-    
-    print("\n✅ Data Contract Support:")
-    print(f"  - Input types: {[t.value for t in DataType]}")
-    print(f"  - Output types: {[t.value for t in OutputType]}")
-    print("  - Automatic compatibility validation")
-    
-    print("\n✅ Configuration Options:")
-    print("  - task_type: text-classification, image-classification, regression")
-    print("  - max_length: Maximum input length for text models")
-    print("  - tokenizer_path: Optional HuggingFace tokenizer")
-    print("  - Custom preprocessing options")
-    
-    print("\n✅ Performance Features:")
-    print("  - Optimized for mobile/edge deployment")
-    print("  - Small model size")
-    print("  - Fast inference")
-    print("  - Memory profiling support")
-
 
 def main():
     """Main function demonstrating TFLite adapter usage."""
-    
-    print("TENSORFLOW LITE BENCHMARK EXAMPLE")
-    print("=" * 60)
-    print("This example demonstrates the TFLite adapter integration")
-    print("with the BenchmarkEngine framework.")
-    print()
-    
-    # Show adapter features
-    demonstrate_tflite_features()
     
     # Run text classification benchmark
     results1 = benchmark_tflite_text_classification()
@@ -255,17 +186,7 @@ def main():
     # Run image classification benchmark (demo only)
     results2 = benchmark_tflite_image_classification()
     
-    # Summary
-    print("\n" + "=" * 60)
-    print("SUMMARY")
-    print("=" * 60)
-    print("✅ TFLite adapter successfully integrated")
-    print("✅ Supports text and image classification")
-    print("✅ Follows Template Method pattern")
-    print("✅ Implements data contracts")
-    print("✅ Compatible with existing framework")
-    print("✅ Ready for real TFLite model files")
-    
+    # Summary  
     print("\nNext Steps:")
     print("- Use actual TFLite model files")
     print("- Add image dataset adapter")
