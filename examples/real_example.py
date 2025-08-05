@@ -36,7 +36,7 @@ def benchmark_distilbert_sst2():
     
     # 2. Configure benchmark
     engine.configure_benchmark({
-        "num_samples": 100,  # Larger sample for statistical significance
+        "num_samples": 1000,  # Larger sample for statistical significance
         "warmup_runs": 3,
         "batch_size": 1,
         "precision": "fp32",
@@ -105,7 +105,7 @@ def benchmark_bert_agnews():
     
     # 2. Configure benchmark
     engine.configure_benchmark({
-        "num_samples": 100,
+        "num_samples": 1000,
         "warmup_runs": 3,
         "batch_size": 1,
         "precision": "fp32",
@@ -174,7 +174,7 @@ def benchmark_roberta_imdb():
     
     # 2. Configure benchmark
     engine.configure_benchmark({
-        "num_samples": 100,
+        "num_samples": 1000,
         "warmup_runs": 3,
         "batch_size": 1,
         "precision": "fp32",
