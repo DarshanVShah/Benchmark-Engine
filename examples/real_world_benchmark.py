@@ -8,16 +8,6 @@ Models Used:
 - distilbert-base-uncased-finetuned-sst-2-english (SST-2: ~91.1% accuracy)
 - textattack/bert-base-uncased-ag-news (AG News: ~94.0% accuracy)
 - textattack/roberta-base-IMDB (IMDB: ~95.0% accuracy)
-
-Datasets Used:
-- SST-2 (Stanford Sentiment Treebank)
-- AG News (News Classification)
-- IMDB (Movie Reviews)
-
-Known Benchmarks:
-- DistilBERT SST-2: 91.1% accuracy (HuggingFace leaderboard)
-- BERT AG News: 94.0% accuracy (paper benchmarks)
-- RoBERTa IMDB: 95.0% accuracy (paper benchmarks)
 """
 
 import sys
@@ -33,17 +23,8 @@ from benchmark_datasets import HuggingFaceDataset
 def benchmark_distilbert_sst2():
     """
     Benchmark DistilBERT on SST-2 dataset.
-    Known accuracy: ~91.1% (HuggingFace leaderboard)
     """
-    
-    print("=" * 60)
     print("BENCHMARK 1: DistilBERT on SST-2")
-    print("=" * 60)
-    print("Model: distilbert-base-uncased-finetuned-sst-2-english")
-    print("Dataset: SST-2 (Stanford Sentiment Treebank)")
-    print("Expected Accuracy: ~91.1% (HuggingFace leaderboard)")
-    print("Task: Binary sentiment classification")
-    print()
     
     # User declares everything in main function
     engine = BenchmarkEngine()
@@ -63,11 +44,9 @@ def benchmark_distilbert_sst2():
     })
     
     # 3. Load dataset
-    print("Loading SST-2 dataset...")
     engine.load_dataset("sst2", "sst2")
     
     # 4. Load model
-    print("Loading DistilBERT SST-2 model...")
     engine.load_model(
         "huggingface", 
         "distilbert-base-uncased-finetuned-sst-2-english",
@@ -83,12 +62,9 @@ def benchmark_distilbert_sst2():
     engine.add_metric("accuracy")
     
     # 6. Run benchmark
-    print("\nRunning benchmark...")
     results = engine.run_benchmark()
     
     # 7. Display results
-    print("\nBenchmark Results:")
-    print("-" * 40)
     engine.print_results()
     
     # 8. Compare with known benchmark
@@ -102,9 +78,9 @@ def benchmark_distilbert_sst2():
     print(f"  Difference:      {difference:.3f} ({difference*100:.1f}%)")
     
     if difference < 0.05:  # Within 5%
-        print("  ✅ Result is close to expected benchmark!")
+        print("Result is close to expected benchmark!")
     else:
-        print("  ⚠️  Result differs from expected benchmark")
+        print("Result differs from expected benchmark")
     
     return results
 
@@ -112,17 +88,12 @@ def benchmark_distilbert_sst2():
 def benchmark_bert_agnews():
     """
     Benchmark BERT on AG News dataset.
-    Known accuracy: ~94.0% (paper benchmarks)
     """
     
     print("\n" + "=" * 60)
     print("BENCHMARK 2: BERT on AG News")
     print("=" * 60)
-    print("Model: textattack/bert-base-uncased-ag-news")
-    print("Dataset: AG News (News Classification)")
-    print("Expected Accuracy: ~94.0% (paper benchmarks)")
-    print("Task: 4-class news classification")
-    print()
+    
     
     # User declares everything in main function
     engine = BenchmarkEngine()
@@ -142,11 +113,9 @@ def benchmark_bert_agnews():
     })
     
     # 3. Load dataset
-    print("Loading AG News dataset...")
     engine.load_dataset("ag_news", "ag_news")
     
     # 4. Load model
-    print("Loading BERT fine-tuned for AG News...")
     engine.load_model(
         "huggingface", 
         "textattack/bert-base-uncased-ag-news",
@@ -162,12 +131,9 @@ def benchmark_bert_agnews():
     engine.add_metric("accuracy")
     
     # 6. Run benchmark
-    print("\nRunning benchmark...")
     results = engine.run_benchmark()
     
     # 7. Display results
-    print("\nBenchmark Results:")
-    print("-" * 40)
     engine.print_results()
     
     # 8. Compare with known benchmark
@@ -181,9 +147,9 @@ def benchmark_bert_agnews():
     print(f"  Difference:      {difference:.3f} ({difference*100:.1f}%)")
     
     if difference < 0.05:
-        print("  ✅ Result is close to expected benchmark!")
+        print("Result is close to expected benchmark!")
     else:
-        print("  ⚠️  Result differs from expected benchmark")
+        print("Result differs from expected benchmark")
     
     return results
 
@@ -191,17 +157,12 @@ def benchmark_bert_agnews():
 def benchmark_roberta_imdb():
     """
     Benchmark RoBERTa on IMDB dataset.
-    Known accuracy: ~95.0% (paper benchmarks)
     """
     
     print("\n" + "=" * 60)
     print("BENCHMARK 3: RoBERTa on IMDB")
     print("=" * 60)
-    print("Model: textattack/roberta-base-IMDB")
-    print("Dataset: IMDB (Movie Reviews)")
-    print("Expected Accuracy: ~95.0% (paper benchmarks)")
-    print("Task: Binary sentiment classification")
-    print()
+    
     
     # User declares everything in main function
     engine = BenchmarkEngine()
@@ -220,12 +181,10 @@ def benchmark_roberta_imdb():
         "device": "cpu"
     })
     
-    # 3. Load dataset
-    print("Loading IMDB dataset...")
+    # 3. Load dataset   
     engine.load_dataset("imdb", "imdb")
     
     # 4. Load model
-    print("Loading RoBERTa fine-tuned for IMDB...")
     engine.load_model(
         "huggingface", 
         "textattack/roberta-base-IMDB",
@@ -241,12 +200,9 @@ def benchmark_roberta_imdb():
     engine.add_metric("accuracy")
     
     # 6. Run benchmark
-    print("\nRunning benchmark...")
     results = engine.run_benchmark()
     
     # 7. Display results
-    print("\nBenchmark Results:")
-    print("-" * 40)
     engine.print_results()
     
     # 8. Compare with known benchmark
@@ -260,9 +216,9 @@ def benchmark_roberta_imdb():
     print(f"  Difference:      {difference:.3f} ({difference*100:.1f}%)")
     
     if difference < 0.05:
-        print("  ✅ Result is close to expected benchmark!")
+        print("Result is close to expected benchmark!")
     else:
-        print("  ⚠️  Result differs from expected benchmark")
+        print("Result differs from expected benchmark")
     
     return results
 
@@ -270,12 +226,6 @@ def benchmark_roberta_imdb():
 
 def main():
     """Main function showing complete user workflow."""
-    
-    print("REAL-WORLD BENCHMARK EXAMPLE")
-    print("=" * 60)
-    print("This example shows how users declare everything in main function")
-    print("and compares against known accuracy benchmarks.")
-    print()
     
     # Run benchmarks
     results1 = benchmark_distilbert_sst2()
