@@ -48,15 +48,24 @@ class HuggingFaceDataset(BaseDataset):
             self.dataset = hf_datasets.load_dataset(dataset_path)
             self.dataset_name = dataset_path
             
-            # Get the train split (or default)
-            if "train" in self.dataset:
+            # Get the validation split for evaluation (or fallback to train)
+            if "validation" in self.dataset:
+                self.data = self.dataset["validation"]
+                print(f"  Using validation split for evaluation")
+            elif "test" in self.dataset:
+                self.data = self.dataset["test"]
+                print(f"  Using test split for evaluation")
+            elif "train" in self.dataset:
                 self.data = self.dataset["train"]
+                print(f"  Warning: Using train split (no validation/test available)")
             elif "default" in self.dataset:
                 self.data = self.dataset["default"]
+                print(f"  Using default split")
             else:
                 # Use first available split
                 split_name = list(self.dataset.keys())[0]
                 self.data = self.dataset[split_name]
+                print(f"  Using {split_name} split")
             
             # Auto-detect dataset structure
             self._auto_detect_format()
