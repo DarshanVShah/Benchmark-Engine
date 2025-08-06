@@ -11,11 +11,14 @@ This package contains dataset loaders for various data types:
 from .dummy_dataset import DummyDataset
 from .text_dataset import TextDataset
 from .huggingface_dataset import HuggingFaceDataset
-from .local_dataset import LocalTextDataset
+from .local_dataset import LocalTextDataset, LocalEmotionDataset
+from .universal_dataset import UniversalDataset
 
 __all__ = [
     'DummyDataset',
     'TextDataset',
     'HuggingFaceDataset',
-    'LocalTextDataset'
+    'LocalTextDataset',
+    'LocalEmotionDataset',
+    'UniversalDataset'
 ] 

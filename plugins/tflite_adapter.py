@@ -113,6 +113,9 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             if self.task_type == "text-classification":
                 self.input_type = DataType.TEXT
                 self.output_type = OutputType.CLASS_ID
+            elif self.task_type == "emotion-detection":
+                self.input_type = DataType.TEXT
+                self.output_type = OutputType.PROBABILITIES
             elif self.task_type == "image-classification":
                 self.input_type = DataType.IMAGE
                 self.output_type = OutputType.CLASS_ID
