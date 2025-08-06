@@ -87,7 +87,7 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             self.model_path = model_path
             self.model_loaded = True
             
-            print(f"  ✓ TensorFlow Lite model loaded: {model_path}")
+            print(f"  TensorFlow Lite model loaded: {model_path}")
             print(f"  Input shape: {self.input_shape}")
             print(f"  Output shape: {self.output_shape}")
             print(f"  Input details: {self.input_details}")
@@ -137,7 +137,7 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                     print("  Warning: transformers not available, using basic tokenization")
                     self.tokenizer = None
             
-            print("  ✓ TensorFlow Lite model configured")
+            print("  TensorFlow Lite model configured")
             return True
             
         except Exception as e:
@@ -208,7 +208,18 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             vocab_size = max(char_to_int.values()) + 1 if char_to_int else 1
             tokenized = [min(t, vocab_size - 1) for t in tokenized]
             
-            return np.array([tokenized], dtype=np.int32)
+            # For BERT models, we need to provide all 3 input tensors
+            if len(self.input_details) == 3:
+                # This is a BERT model expecting attention_mask, input_ids, token_type_ids
+                input_ids = np.array([tokenized], dtype=np.int32)
+                attention_mask = np.ones_like(input_ids, dtype=np.int32)
+                token_type_ids = np.zeros_like(input_ids, dtype=np.int32)
+                
+                # Return a list of the 3 tensors
+                return [attention_mask, input_ids, token_type_ids]
+            else:
+                # Single input tensor
+                return np.array([tokenized], dtype=np.int32)
     
     def _preprocess_image(self, raw_input: Union[str, Dict[str, Any]]) -> np.ndarray:
         """Preprocess image input for TFLite model."""
@@ -260,7 +271,7 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
         Run inference on preprocessed input.
         
         Args:
-            preprocessed_input: Input in TFLite format
+            preprocessed_input: Input in TFLite format (single tensor or list of tensors)
             
         Returns:
             Raw model output
@@ -268,8 +279,15 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
         if not self.model_loaded:
             raise RuntimeError("Model not loaded")
         
-        # Set input tensor
-        self.interpreter.set_tensor(self.input_details[0]['index'], preprocessed_input)
+        # Handle multiple input tensors (for BERT models)
+        if isinstance(preprocessed_input, list):
+            # Set all input tensors
+            for i, tensor in enumerate(preprocessed_input):
+                if i < len(self.input_details):
+                    self.interpreter.set_tensor(self.input_details[i]['index'], tensor)
+        else:
+            # Single input tensor
+            self.interpreter.set_tensor(self.input_details[0]['index'], preprocessed_input)
         
         # Run inference
         self.interpreter.invoke()
@@ -294,8 +312,11 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             return int(np.argmax(model_output[0]))
         
         elif self.output_type == OutputType.PROBABILITIES:
-            # Return probability distribution
-            return model_output[0].tolist()
+            # Convert logits to probabilities using sigmoid
+            import numpy as np
+            logits = model_output[0]
+            probabilities = 1.0 / (1.0 + np.exp(-logits))  # sigmoid
+            return probabilities.tolist()
         
         elif self.output_type == OutputType.LOGITS:
             # Return raw logits

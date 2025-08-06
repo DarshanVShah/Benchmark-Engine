@@ -161,7 +161,7 @@ class HuggingFaceAdapter(BaseModelAdapter):
                 self.task_type = config["task_type"]
                 print(f"  Task type set to: {self.task_type}")
             
-            print(f"✓ HuggingFace model configured")
+            print(f"HuggingFace model configured")
             return True
             
         except Exception as e:

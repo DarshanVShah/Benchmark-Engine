@@ -154,7 +154,11 @@ class TemplateMultiLabelMetric(BaseMetric):
             target_array = []
             for emotion in ['anger', 'anticipation', 'disgust', 'fear', 'joy', 
                           'love', 'optimism', 'pessimism', 'sadness', 'surprise', 'trust']:
-                target_array.append(target.get(emotion, 0))
+                # Handle both string and integer target values
+                target_value = target.get(emotion, 0)
+                if isinstance(target_value, str):
+                    target_value = int(target_value)
+                target_array.append(target_value)
             
             binary_targets.append(np.array(target_array))
         
@@ -175,14 +179,22 @@ class TemplateMultiLabelMetric(BaseMetric):
             return {"error": f"Unknown metric type: {self.metric_type}"}
     
     def _calculate_accuracy(self, predictions: np.ndarray, targets: np.ndarray) -> Dict[str, Any]:
-        """Calculate exact match accuracy."""
-        exact_matches = np.all(predictions == targets, axis=1)
-        accuracy = np.mean(exact_matches)
+        """Calculate per-emotion accuracy (not exact match)."""
+        # Calculate accuracy per emotion, then average
+        total_correct = 0
+        total_predictions = 0
+        
+        for i in range(predictions.shape[1]):  # For each emotion
+            emotion_correct = np.sum(predictions[:, i] == targets[:, i])
+            total_correct += emotion_correct
+            total_predictions += predictions.shape[0]
+        
+        accuracy = total_correct / total_predictions if total_predictions > 0 else 0.0
         
         return {
             "accuracy": float(accuracy),
-            "exact_matches": int(np.sum(exact_matches)),
-            "total_samples": len(predictions)
+            "total_correct": int(total_correct),
+            "total_predictions": int(total_predictions)
         }
     
     def _calculate_f1(self, predictions: np.ndarray, targets: np.ndarray) -> Dict[str, Any]:
