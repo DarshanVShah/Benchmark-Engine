@@ -1,29 +1,23 @@
 """
-Working Template Benchmark with Real Model
+Working TFLite Example utilizing Nirmal's model
+Attempting to use template method pattern
 
-This example demonstrates the template pattern with:
-- Real TFLite model: models/notQuantizedModel.tflite
-- Real dataset: benchmark_datasets/localTestSets/2018-E-c-En-test-gold.txt
-- Explicit configuration - no auto-detection!
 """
 
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core import BenchmarkEngine, DataType, OutputType
+from core import BenchmarkEngine
 from plugins import TensorFlowLiteAdapter
 from metrics import TemplateAccuracyMetric, TemplateMultiLabelMetric
 from benchmark_datasets import TemplateDataset
 
 
-def benchmark_with_real_model():
+def benchmark_nirmal_model():
     """
     Demonstrate template pattern with real TFLite model and dataset.
     """
-    print("=" * 60)
-    print("WORKING TEMPLATE BENCHMARK WITH REAL MODEL")
-
     
     # User declares everything in main function
     engine = BenchmarkEngine()
@@ -43,7 +37,7 @@ def benchmark_with_real_model():
         "device": "cpu"
     })
     
-    # 3. Load dataset with EXPLICIT configuration
+    # 3. Load dataset with configuration
     dataset_path = "benchmark_datasets/localTestSets/2018-E-c-En-test-gold.txt"
     
     # User explicitly specifies dataset configuration
@@ -61,7 +55,7 @@ def benchmark_with_real_model():
         print("Failed to load dataset")
         return None
     
-    # 4. Load TFLite model with EXPLICIT configuration
+    # 4. Load TFLite model
     model_path = "models/notQuantizedModel.tflite"
     model_config = {
         "task_type": "emotion-detection",
@@ -73,8 +67,7 @@ def benchmark_with_real_model():
         print("Failed to load model")
         return None
     
-    # 5. Add metrics with EXPLICIT configuration
-    # Create metrics with explicit parameters
+    # 5. Add metrics
     accuracy_metric = TemplateAccuracyMetric(input_type="probabilities", threshold=0.2)  # Lower threshold
     multilabel_metric = TemplateMultiLabelMetric(metric_type="accuracy", threshold=0.2)  # Lower threshold
     
@@ -87,7 +80,6 @@ def benchmark_with_real_model():
         
         # 7. Display results
         print("\nBenchmark Results:")
-        print("-" * 40)
         engine.print_results()
         
         return results
@@ -99,7 +91,7 @@ def benchmark_with_real_model():
 
 
 def main():
-    """Main function demonstrating template pattern with real model."""
+    """Main function for TFLite example"""
     
     # Check if files exist
     model_path = "models/notQuantizedModel.tflite"
@@ -116,10 +108,9 @@ def main():
     print("All required files found")
     print(f"Model: {model_path} ({os.path.getsize(model_path) / (1024*1024):.1f} MB)")
     print(f"Dataset: {dataset_path}")
-    print()
     
     # Run the benchmark
-    results = benchmark_with_real_model()
+    results = benchmark_nirmal_model()
 
 
 if __name__ == "__main__":
