@@ -2,7 +2,7 @@
 Template Dataset Pattern
 
 This module provides a clean template pattern for datasets.
-Users explicitly select the format and structure - no auto-detection.
+Users explicitly select the format and structure
 """
 
 import os
@@ -21,8 +21,7 @@ class TemplateDataset(BaseDataset):
     - Text column name
     - Label column names
     - Task type
-    
-    No auto-detection - explicit and reliable!
+
     """
     
     def __init__(self):
@@ -89,7 +88,7 @@ class TemplateDataset(BaseDataset):
             self.dataset_path = dataset_path
             self.dataset_loaded = True
             
-            print(f"  ✓ Template dataset loaded: {dataset_path}")
+            print(f"  Template dataset loaded: {dataset_path}")
             print(f"  Format: {self.file_format}")
             print(f"  Samples: {len(self.data)}")
             print(f"  Task: {self.task_type}")

@@ -18,17 +18,6 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
     """
     TensorFlow Lite model adapter for benchmarking.
     
-    Supports:
-    - Text classification models
-    - Image classification models
-    - Regression models
-    - Custom input/output formats
-    
-    Handles:
-    - Model loading and initialization
-    - Input preprocessing
-    - Inference execution
-    - Output postprocessing
     """
     
     def __init__(self):
@@ -371,29 +360,3 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
     def validate_compatibility(self, dataset: 'BaseDataset') -> bool:
         """Validate that this model is compatible with the given dataset."""
         return dataset.output_type == self.input_type
-
-
-# Example usage and testing
-if __name__ == "__main__":
-    # Test the adapter
-    adapter = TensorFlowLiteAdapter()
-    
-    # Test configuration
-    config = {
-        "task_type": "text-classification",
-        "max_length": 128,
-        "tokenizer_path": "bert-base-uncased"  # Optional
-    }
-    
-    print("TensorFlow Lite Adapter Test")
-    print("=" * 40)
-    print(f"Input type: {adapter.input_type}")
-    print(f"Output type: {adapter.output_type}")
-    print(f"Model type: {adapter.get_model_type()}")
-    
-    # Test with dummy data
-    test_input = {"text": "This is a test sentence."}
-    print(f"\nTest input: {test_input}")
-    
-    # Note: This would need an actual TFLite model file to fully test
-    print("Adapter ready for use with actual TFLite model files") 

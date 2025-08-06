@@ -13,9 +13,7 @@ from core import BaseDataset
 class DummyDataset(BaseDataset):
     """
     A dummy dataset that generates synthetic data.
-    
-    This is useful for testing the framework without requiring
-    actual dataset files.
+
     """
     
     def __init__(self):
@@ -28,11 +26,6 @@ class DummyDataset(BaseDataset):
         """
         Simulate loading a dataset.
         
-        Args:
-            dataset_path: Path to the dataset (ignored in dummy implementation)
-            
-        Returns:
-            True if "loaded" successfully
         """
         print(f"Loading dummy dataset from {dataset_path}...")
         
@@ -48,11 +41,6 @@ class DummyDataset(BaseDataset):
         """
         Generate synthetic samples (for compatibility).
         
-        Args:
-            num_samples: Number of samples to generate (None = all available)
-            
-        Returns:
-            List of synthetic samples
         """
         # For compatibility, return samples without targets
         samples_with_targets = self.get_samples_with_targets(num_samples)
@@ -62,11 +50,6 @@ class DummyDataset(BaseDataset):
         """
         Generate synthetic samples with targets.
         
-        Args:
-            num_samples: Number of samples to generate (None = all available)
-            
-        Returns:
-            List of (sample, target) tuples
         """
         if not self.dataset_loaded:
             raise RuntimeError("Dataset not loaded. Call load() first.")
@@ -99,8 +82,6 @@ class DummyDataset(BaseDataset):
         """
         Return metadata about the loaded dataset.
         
-        Returns:
-            Dictionary containing dataset information
         """
         return {
             "name": self.dataset_name,
@@ -115,9 +96,6 @@ class DummyDataset(BaseDataset):
         """
         Return the expected input shape for models.
         
-        Returns:
-            Tuple representing the input shape
         """
         # For dummy dataset, return a simple shape
-        # In real datasets, this would be the actual input dimensions
         return (self.sample_size,) 

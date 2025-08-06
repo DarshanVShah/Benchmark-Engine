@@ -1,8 +1,6 @@
 """
 Generic HuggingFace Dataset Adapter
 
-This adapter can load ANY dataset from HuggingFace Hub and automatically
-detect the appropriate format for benchmarking.
 """
 
 import random
@@ -16,13 +14,6 @@ class HuggingFaceDataset(BaseDataset):
     """
     Generic dataset adapter for any HuggingFace Hub dataset.
     
-    This adapter automatically detects the dataset format and handles:
-    - Text classification datasets
-    - Emotion detection datasets (VAD)
-    - Sentiment analysis datasets
-    - Custom datasets with any structure
-    
-    Users just need to specify the dataset name - no custom files required!
     """
     
     def __init__(self):

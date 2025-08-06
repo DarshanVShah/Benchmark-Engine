@@ -13,9 +13,7 @@ from core import BaseDataset
 class TextDataset(BaseDataset):
     """
     A text dataset that generates synthetic text samples with classification labels.
-    
-    This is useful for testing HuggingFace models without requiring
-    actual text dataset files.
+
     """
     
     def __init__(self):
@@ -56,11 +54,6 @@ class TextDataset(BaseDataset):
         """
         Simulate loading a text dataset.
         
-        Args:
-            dataset_path: Path to the dataset (ignored in dummy implementation)
-            
-        Returns:
-            True if "loaded" successfully
         """
         print(f"Loading text dataset from {dataset_path}...")
         
@@ -79,11 +72,6 @@ class TextDataset(BaseDataset):
         """
         Generate synthetic text samples (for compatibility).
         
-        Args:
-            num_samples: Number of samples to generate (None = all available)
-            
-        Returns:
-            List of synthetic text samples
         """
         # For compatibility, return samples without targets
         samples_with_targets = self.get_samples_with_targets(num_samples)
@@ -93,11 +81,6 @@ class TextDataset(BaseDataset):
         """
         Generate synthetic text samples with classification targets.
         
-        Args:
-            num_samples: Number of samples to generate (None = all available)
-            
-        Returns:
-            List of (sample, target) tuples for text classification
         """
         if not self.dataset_loaded:
             raise RuntimeError("Dataset not loaded. Call load() first.")
@@ -141,8 +124,6 @@ class TextDataset(BaseDataset):
         """
         Return metadata about the loaded dataset.
         
-        Returns:
-            Dictionary containing dataset information
         """
         return {
             "name": self.dataset_name,
@@ -160,8 +141,6 @@ class TextDataset(BaseDataset):
         """
         Return the expected input shape for models.
         
-        Returns:
-            Tuple representing the input shape (for text, this is variable)
         """
         # For text data, the shape is variable, but we can specify max length
         return (self.max_length,) 
