@@ -71,23 +71,33 @@ class BenchmarkEngine:
         
         return True
     
-    def load_dataset(self, dataset_name: str, dataset_path: str) -> bool:
-        """Load a dataset using the specified dataset loader."""
+    def load_dataset(self, dataset_name: str, dataset_path: str, dataset_config: Optional[Dict[str, Any]] = None) -> bool:
+        """Load a dataset using the specified dataset loader with optional configuration."""
         if dataset_name not in self._datasets:
             raise ValueError(f"Unknown dataset: {dataset_name}")
         
         dataset_class = self._datasets[dataset_name]
         self.dataset = dataset_class()
-        return self.dataset.load(dataset_path)
-    
-    def add_metric(self, metric_name: str) -> bool:
-        """Add a metric to the benchmark."""
-        if metric_name not in self._metrics:
-            raise ValueError(f"Unknown metric: {metric_name}")
         
-        metric_class = self._metrics[metric_name]
-        self.metrics.append(metric_class())
-        return True
+        if dataset_config:
+            return self.dataset.load(dataset_path, dataset_config)
+        else:
+            return self.dataset.load(dataset_path)
+    
+    def add_metric(self, metric_name: str, metric_instance: Optional[BaseMetric] = None) -> bool:
+        """Add a metric to the benchmark."""
+        if metric_instance:
+            # Use provided metric instance
+            self.metrics.append(metric_instance)
+            return True
+        else:
+            # Create metric instance from registered class
+            if metric_name not in self._metrics:
+                raise ValueError(f"Unknown metric: {metric_name}")
+            
+            metric_class = self._metrics[metric_name]
+            self.metrics.append(metric_class())
+            return True
     
     def validate_setup(self) -> bool:
         """Validate that model, dataset, and metrics are compatible."""

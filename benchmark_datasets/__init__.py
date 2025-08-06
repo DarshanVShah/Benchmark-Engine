@@ -12,7 +12,7 @@ from .dummy_dataset import DummyDataset
 from .text_dataset import TextDataset
 from .huggingface_dataset import HuggingFaceDataset
 from .local_dataset import LocalTextDataset, LocalEmotionDataset
-from .universal_dataset import UniversalDataset
+from .template_dataset import TemplateDataset
 
 __all__ = [
     'DummyDataset',
@@ -20,5 +20,5 @@ __all__ = [
     'HuggingFaceDataset',
     'LocalTextDataset',
     'LocalEmotionDataset',
-    'UniversalDataset'
+    'TemplateDataset'
 ] 

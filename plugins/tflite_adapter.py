@@ -204,6 +204,10 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             while len(tokenized) < max_len:
                 tokenized.append(0)
             
+            # Ensure indices are within bounds for the model
+            vocab_size = max(char_to_int.values()) + 1 if char_to_int else 1
+            tokenized = [min(t, vocab_size - 1) for t in tokenized]
+            
             return np.array([tokenized], dtype=np.int32)
     
     def _preprocess_image(self, raw_input: Union[str, Dict[str, Any]]) -> np.ndarray:

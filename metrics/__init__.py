@@ -16,7 +16,7 @@ from .task_metric import (
     RegressionMetric,
     ConfigurableMetric
 )
-from .multi_label_metric import MultiLabelAccuracyMetric, MultiLabelF1Metric
+from .template_metric import TemplateAccuracyMetric, TemplateMultiLabelMetric
 
 __all__ = [
     'DummyAccuracyMetric',
@@ -25,6 +25,6 @@ __all__ = [
     'ClassificationMetric',
     'RegressionMetric',
     'ConfigurableMetric',
-    'MultiLabelAccuracyMetric',
-    'MultiLabelF1Metric'
+    'TemplateAccuracyMetric',
+    'TemplateMultiLabelMetric'
 ] 
