@@ -2,7 +2,7 @@
 Setup script for the BenchmarkEngine framework.
 """
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -46,8 +46,8 @@ setup(
         "examples": [
             # Dependencies for example plugins
             "transformers>=4.0.0",  # For HuggingFace adapter
-            "torch>=1.8.0",         # For PyTorch support
-            "tensorflow>=2.4.0",    # For TensorFlow support
+            "torch>=1.8.0",  # For PyTorch support
+            "tensorflow>=2.4.0",  # For TensorFlow support
         ],
     },
     entry_points={
@@ -57,4 +57,4 @@ setup(
     },
     include_package_data=True,
     zip_safe=False,
-) 
+)

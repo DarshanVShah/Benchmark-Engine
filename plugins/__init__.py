@@ -11,7 +11,7 @@ from .tflite_adapter import TensorFlowLiteAdapter
 
 __all__ = [
     # Model adapters
-    'DummyModelAdapter',
-    'HuggingFaceAdapter',
-    'TensorFlowLiteAdapter',
-] 
+    "DummyModelAdapter",
+    "HuggingFaceAdapter",
+    "TensorFlowLiteAdapter",
+]
