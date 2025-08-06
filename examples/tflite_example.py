@@ -30,9 +30,9 @@ def benchmark_nirmal_model():
     
     # 2. Configure benchmark
     engine.configure_benchmark({
-        "num_samples": 100,  # Smaller sample for demo
+        "num_samples": 1000,  # Smaller sample for demo
         "warmup_runs": 2,
-        "batch_size": 10,
+        "batch_size": 1,
         "precision": "fp32",
         "device": "cpu"
     })
@@ -68,10 +68,10 @@ def benchmark_nirmal_model():
         return None
     
     # 5. Add metrics
-    accuracy_metric = TemplateAccuracyMetric(input_type="probabilities", threshold=0.2)  # Lower threshold
-    multilabel_metric = TemplateMultiLabelMetric(metric_type="accuracy", threshold=0.2)  # Lower threshold
+    #accuracy_metric = TemplateAccuracyMetric(input_type="probabilities", threshold=0.2)  # Lower threshold
+    multilabel_metric = TemplateMultiLabelMetric(metric_type="accuracy", threshold=0.8)  # Lower threshold
     
-    engine.add_metric("template_accuracy", accuracy_metric)
+    #engine.add_metric("template_accuracy", accuracy_metric)
     engine.add_metric("template_multilabel", multilabel_metric)
     
     # 6. Run benchmark
