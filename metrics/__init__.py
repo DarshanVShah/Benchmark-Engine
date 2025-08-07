@@ -11,17 +11,16 @@ This package contains metric implementations for evaluating model performance:
 from .dummy_metric import DummyAccuracyMetric
 from .accuracy_metric import AccuracyMetric
 from .generic_metric import GenericMetric
-from .task_metric import (
-    ClassificationMetric,
-    RegressionMetric,
-    ConfigurableMetric
-)
+from .task_metric import ClassificationMetric, RegressionMetric, ConfigurableMetric
+from .template_metric import TemplateAccuracyMetric, TemplateMultiLabelMetric
 
 __all__ = [
-    'DummyAccuracyMetric',
-    'AccuracyMetric',
-    'GenericMetric',
-    'ClassificationMetric',
-    'RegressionMetric',
-    'ConfigurableMetric'
-] 
+    "DummyAccuracyMetric",
+    "AccuracyMetric",
+    "GenericMetric",
+    "ClassificationMetric",
+    "RegressionMetric",
+    "ConfigurableMetric",
+    "TemplateAccuracyMetric",
+    "TemplateMultiLabelMetric",
+]
