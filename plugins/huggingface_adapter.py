@@ -102,26 +102,24 @@ class HuggingFaceAdapter(BaseModelAdapter):
                     self.model = AutoModelForSequenceClassification.from_pretrained(
                         model_path
                     )
-                    self.model_type = "sequence-classification"
+                    self.model_type = "sequence_classification"
                 except:
-                    # Fallback to base model
+                    # Try generic model
                     self.model = AutoModel.from_pretrained(model_path)
-                    self.model_type = "base"
+                    self.model_type = "generic"
 
-            # Set model to evaluation mode
+            # Move to device
+            self.model.to(self.device)
             self.model.eval()
 
-            # Get model info
-            self.model_name = model_path.split("/")[-1]  # Extract model name from path
-
-            print(f"HuggingFace model loaded: {self.model_name}")
+            print(f"  Model loaded successfully")
             print(f"  Model type: {self.model_type}")
-            print(f"  Parameters: {self.model.num_parameters():,}")
+            print(f"  Device: {self.device}")
 
             return True
 
         except Exception as e:
-            print(f"Failed to load HuggingFace model: {e}")
+            print(f"  Failed to load model: {e}")
             return False
 
     def configure(self, config: Dict[str, Any]) -> bool:
@@ -129,219 +127,134 @@ class HuggingFaceAdapter(BaseModelAdapter):
         Configure model parameters.
 
         Args:
-            config: Configuration dictionary with parameters like:
+            config: Configuration dictionary with keys:
                 - device: "cpu", "cuda", "mps"
                 - precision: "fp32", "fp16", "int8"
-                - batch_size: int
-                - task_type: "text-classification", "token-classification", etc.
+                - batch_size: Batch size for inference
+                - max_length: Maximum sequence length
+                - task_type: Type of task (classification, etc.)
 
         Returns:
             True if configured successfully
         """
         try:
-            print(f"Configuring HuggingFace model with: {config}")
-
-            # Update configuration
             self.config.update(config)
 
-            # Handle device configuration
+            # Set device
             if "device" in config:
                 self.device = config["device"]
+                if self.model:
+                    self.model.to(self.device)
 
-                # Move model to specified device
-                if self.device == "cuda" and torch.cuda.is_available():
-                    self.model = self.model.to("cuda")
-                    print(f"  Model moved to CUDA")
-                elif (
-                    self.device == "mps"
-                    and hasattr(torch.backends, "mps")
-                    and torch.backends.mps.is_available()
-                ):
-                    self.model = self.model.to("mps")
-                    print(f"  Model moved to MPS")
-                else:
-                    self.model = self.model.to("cpu")
-                    print(f"  Model moved to CPU")
-
-            # Handle precision configuration
+            # Set precision
             if "precision" in config:
-                if config["precision"] == "fp16" and self.device != "cpu":
+                precision = config["precision"]
+                if precision == "fp16" and self.device != "cpu":
                     self.model = self.model.half()
-                    print(f"  Model converted to FP16")
-                elif config["precision"] == "int8":
-                    # Note: INT8 quantization requires additional setup
-                    print(f"  INT8 quantization not implemented yet")
 
-            # Handle task type configuration
+            # Set task type
             if "task_type" in config:
                 self.task_type = config["task_type"]
-                print(f"  Task type set to: {self.task_type}")
 
-            print(f"HuggingFace model configured")
+            print(f"  Model configured successfully")
             return True
 
         except Exception as e:
-            print(f"Failed to configure HuggingFace model: {e}")
+            print(f"  Failed to configure model: {e}")
             return False
 
-    def preprocess_input(self, sample: Any) -> Any:
+    def preprocess(self, raw_input: Any) -> Any:
         """
-        Convert dataset sample to HuggingFace input format.
+        Preprocess text input for HuggingFace models.
 
         Args:
-            sample: Raw sample from dataset (dict with "text" key)
+            raw_input: Raw text input from dataset
 
         Returns:
-            Tokenized input ready for model inference
+            Tokenized inputs ready for model inference
         """
         try:
-            # Extract text from sample
-            if isinstance(sample, dict):
-                if "text" in sample:
-                    text = sample["text"]
-                elif "sentence" in sample:
-                    text = sample["sentence"]
-                elif "input" in sample:
-                    text = sample["input"]
-                else:
-                    # Try to find any string value
-                    text = next((v for v in sample.values() if isinstance(v, str)), "")
-            elif isinstance(sample, str):
-                text = sample
-            else:
-                raise ValueError(f"Unsupported sample format: {type(sample)}")
+            if not isinstance(raw_input, str):
+                print(f"Warning: Expected string input, got {type(raw_input)}")
+                raw_input = str(raw_input)
 
-            # Tokenize text
+            # Tokenize the text
             inputs = self.tokenizer(
-                text,
+                raw_input,
                 return_tensors="pt",
-                padding=True,
                 truncation=True,
-                max_length=512,  # Default max length
+                max_length=self.config.get("max_length", 512),
+                padding=True,
             )
 
-            # Move to same device as model
+            # Move to device
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
             return inputs
 
         except Exception as e:
-            print(f"Failed to preprocess input: {e}")
-            # Return a safe fallback
-            return self.tokenizer(
-                "fallback text",
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=512,
-            )
+            print(f"Error in preprocessing: {e}")
+            return None
 
-    def run(self, inputs: Any) -> Any:
+    def run(self, preprocessed_input: Any) -> Any:
         """
-        Run inference with HuggingFace model.
+        Run inference on preprocessed input.
 
         Args:
-            inputs: Preprocessed inputs from preprocess_input()
+            preprocessed_input: Tokenized inputs from preprocess()
 
         Returns:
-            Raw model outputs
+            Raw model output (logits)
         """
         try:
-            if self.model is None:
-                raise RuntimeError("Model not loaded. Call load() first.")
-
-            # Run inference
-            with torch.no_grad():  # Disable gradient computation for inference
-                outputs = self.model(**inputs)
-
-            return outputs
+            with torch.no_grad():
+                outputs = self.model(**preprocessed_input)
+                return outputs.logits
 
         except Exception as e:
-            print(f"Failed to run inference: {e}")
-            # Return a safe fallback output
-            return {"logits": torch.zeros(1, 2)}  # Binary classification fallback
+            print(f"Error in model inference: {e}")
+            return None
 
-    def postprocess_output(self, model_output: Any) -> Any:
+    def postprocess(self, model_output: Any) -> Any:
         """
-        Convert model output to standardized format.
+        Postprocess model output to get class predictions.
 
         Args:
-            model_output: Raw model outputs from run()
+            model_output: Raw logits from model
 
         Returns:
-            Standardized prediction (class label, probabilities, etc.)
+            Class ID predictions
         """
         try:
-            if hasattr(model_output, "logits"):
-                logits = model_output.logits
+            if model_output is None:
+                return None
 
-                # Apply softmax to get probabilities
-                probabilities = torch.softmax(logits, dim=-1)
+            # Convert logits to probabilities
+            probabilities = torch.softmax(model_output, dim=-1)
 
-                # Get predicted class
-                predicted_class = torch.argmax(logits, dim=-1)
+            # Get predicted class IDs
+            predicted_class_ids = torch.argmax(probabilities, dim=-1)
 
-                # Convert to standard format
-                if self.task_type == "text-classification":
-                    return {
-                        "class": predicted_class.item(),
-                        "probabilities": probabilities.cpu().numpy().tolist(),
-                        "confidence": probabilities.max().item(),
-                    }
-                else:
-                    # Generic format
-                    return {
-                        "prediction": predicted_class.item(),
-                        "probabilities": probabilities.cpu().numpy().tolist(),
-                    }
+            # Convert to Python list
+            if isinstance(predicted_class_ids, torch.Tensor):
+                predicted_class_ids = predicted_class_ids.cpu().numpy()
 
-            elif hasattr(model_output, "last_hidden_state"):
-                # For base models without classification head
-                hidden_states = model_output.last_hidden_state
-                # Use mean pooling as a simple approach
-                pooled = torch.mean(hidden_states, dim=1)
-                return {"embeddings": pooled.cpu().numpy().tolist()}
-
-            else:
-                # Fallback for unknown output format
-                return {"raw_output": str(model_output)}
+            return predicted_class_ids.tolist()
 
         except Exception as e:
-            print(f"Failed to postprocess output: {e}")
-            return {"error": str(e)}
+            print(f"Error in postprocessing: {e}")
+            return None
 
     def get_model_info(self) -> Dict[str, Any]:
-        """
-        Return metadata about the loaded model.
-
-        Returns:
-            Dictionary containing model information
-        """
-        info = {
+        """Return metadata about the loaded model."""
+        return {
             "name": self.model_name,
-            "type": "huggingface",
-            "model_type": self.model_type,
-            "task_type": self.task_type,
+            "type": self.model_type,
             "device": self.device,
-            "loaded": self.model is not None,
+            "task_type": self.task_type,
             "config": self.config,
         }
 
-        if self.model is not None:
-            info["parameters"] = self.model.num_parameters()
-            info["model_class"] = self.model.__class__.__name__
-
-        if self.tokenizer is not None:
-            info["vocab_size"] = self.tokenizer.vocab_size
-            info["tokenizer_class"] = self.tokenizer.__class__.__name__
-
-        return info
-
     def get_model_type(self) -> ModelType:
-        """
-        Return the type of model for validation.
-
-        Returns:
-            ModelType enum value
-        """
+        """Return the type of model."""
         return ModelType.HUGGINGFACE

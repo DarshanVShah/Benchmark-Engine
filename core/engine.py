@@ -111,14 +111,15 @@ class BenchmarkEngine:
             print("No metrics added")
             return False
         
-        # Validate compatibility
+        # Validate compatibility between model and dataset
         if not self.model_adapter.validate_compatibility(self.dataset):
-            print("Model adapter is not compatible with the dataset")
+            print(f"Model adapter input type ({self.model_adapter.input_type.value}) is not compatible with dataset output type ({self.dataset.output_type.value})")
             return False
         
+        # Validate compatibility between model output and metrics
         for metric in self.metrics:
             if self.model_adapter.output_type != metric.expected_input_type:
-                print(f"Model output type {self.model_adapter.output_type} is not compatible with metric {metric.get_name()} expected input type {metric.expected_input_type}")
+                print(f"Model output type {self.model_adapter.output_type.value} is not compatible with metric {metric.get_name()} expected input type {metric.expected_input_type.value}")
                 return False
         
         return True
@@ -132,7 +133,8 @@ class BenchmarkEngine:
             warmup_runs = self.config.warmup_runs
         
         # Validate setup
-        self.validate_setup()
+        if not self.validate_setup():
+            raise RuntimeError("Benchmark setup validation failed")
         
         # Get samples with targets
         samples_with_targets = self.dataset.get_samples_with_targets(num_samples)
@@ -146,9 +148,7 @@ class BenchmarkEngine:
         # Warmup runs
         print(f"Running {warmup_runs} warmup runs...")
         for _ in range(warmup_runs):
-            preprocessed_input = self.model_adapter.preprocess_input(inputs[0])
-            model_output = self.model_adapter.run(preprocessed_input)
-            _ = self.model_adapter.postprocess_output(model_output)
+            _ = self.model_adapter.predict(inputs[0])
         
         # Memory profiling setup
         initial_memory = psutil.Process().memory_info().rss if self.config.profile_memory else 0
@@ -163,14 +163,8 @@ class BenchmarkEngine:
         for i, (sample, target) in enumerate(samples_with_targets):
             sample_start = time.time()
             
-            # Preprocess input
-            preprocessed_input = self.model_adapter.preprocess_input(sample)
-            
-            # Run inference
-            model_output = self.model_adapter.run(preprocessed_input)
-            
-            # Postprocess output
-            prediction = self.model_adapter.postprocess_output(model_output)
+            # Use the Template Method pattern predict() method
+            prediction = self.model_adapter.predict(sample)
             
             sample_time = time.time() - sample_start
             
