@@ -270,18 +270,52 @@ class BenchmarkEngine:
             print(f"Expected accuracy range: {dataset_config.expected_accuracy_range}")
             print(f"{'='*50}")
             
+            # Ensure dataset is available
+            if not self.dataset_registry.ensure_dataset_available(dataset_config):
+                print(f"Failed to ensure dataset availability: {dataset_config.name}")
+                all_results["datasets"][dataset_config.name] = {
+                    "dataset_info": dataset_config,
+                    "error": "Dataset not available"
+                }
+                continue
+            
             # Load dataset
             if not self.load_dataset("template", dataset_config.path, dataset_config.config):
                 print(f"Failed to load dataset: {dataset_config.name}")
+                all_results["datasets"][dataset_config.name] = {
+                    "dataset_info": dataset_config,
+                    "error": "Failed to load dataset"
+                }
                 continue
+            
+            # Configure model for this dataset's task type
+            if model_config is None:
+                model_config = {}
+            
+            # Update model config based on dataset task type
+            dataset_task_type = dataset_config.config.get("task_type", "single-label")
+            if dataset_task_type == "multi-label":
+                model_config["is_multi_label"] = True
+                model_config["task_type"] = "multi-label"
+            else:
+                model_config["is_multi_label"] = False
+                model_config["task_type"] = "single-label"
+            
+            # Reconfigure model if needed
+            if self.model_adapter:
+                self.model_adapter.configure(model_config)
             
             # Add appropriate metrics based on task type
             self.metrics.clear()
-            if dataset_config.config.get("task_type") == "multi-label":
-                multilabel_metric = self._metrics["template_multilabel"](metric_type="accuracy", threshold=0.5)
+            if dataset_task_type == "multi-label":
+                # Use multi-label metric that expects probabilities
+                from metrics.template_metric import TemplateMultiLabelMetric
+                multilabel_metric = TemplateMultiLabelMetric(metric_type="accuracy", threshold=0.5)
                 self.metrics.append(multilabel_metric)
             else:
-                accuracy_metric = self._metrics["template_accuracy"](input_type="probabilities", threshold=0.5)
+                # Use single-label metric that expects class IDs
+                from metrics.simple_accuracy_metric import SimpleAccuracyMetric
+                accuracy_metric = SimpleAccuracyMetric()
                 self.metrics.append(accuracy_metric)
             
             # Run benchmark

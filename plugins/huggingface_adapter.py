@@ -53,6 +53,7 @@ class HuggingFaceAdapter(BaseModelAdapter):
         self.config = {}
         self.device = "cpu"
         self.task_type = "text-classification"  # Default task
+        self.is_multi_label = False  # Track if this is a multi-label task
 
     @property
     def input_type(self) -> DataType:
@@ -61,8 +62,8 @@ class HuggingFaceAdapter(BaseModelAdapter):
 
     @property
     def output_type(self) -> OutputType:
-        """HuggingFace models output class IDs by default."""
-        return OutputType.CLASS_ID
+        """HuggingFace models output probabilities for multi-label, class IDs for single-label."""
+        return OutputType.PROBABILITIES if self.is_multi_label else OutputType.CLASS_ID
 
     def load(self, model_path: str) -> bool:
         """
@@ -83,25 +84,17 @@ class HuggingFaceAdapter(BaseModelAdapter):
             # Try to determine model type based on path
             if "bert" in model_path.lower():
                 self.model_type = "bert"
-                self.model = AutoModelForSequenceClassification.from_pretrained(
-                    model_path
-                )
+                self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
             elif "roberta" in model_path.lower():
                 self.model_type = "roberta"
-                self.model = AutoModelForSequenceClassification.from_pretrained(
-                    model_path
-                )
+                self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
             elif "distilbert" in model_path.lower():
                 self.model_type = "distilbert"
-                self.model = AutoModelForSequenceClassification.from_pretrained(
-                    model_path
-                )
+                self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
             else:
                 # Generic approach - try sequence classification first
                 try:
-                    self.model = AutoModelForSequenceClassification.from_pretrained(
-                        model_path
-                    )
+                    self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
                     self.model_type = "sequence_classification"
                 except:
                     # Try generic model
@@ -133,6 +126,7 @@ class HuggingFaceAdapter(BaseModelAdapter):
                 - batch_size: Batch size for inference
                 - max_length: Maximum sequence length
                 - task_type: Type of task (classification, etc.)
+                - is_multi_label: Whether this is a multi-label task
 
         Returns:
             True if configured successfully
@@ -155,6 +149,12 @@ class HuggingFaceAdapter(BaseModelAdapter):
             # Set task type
             if "task_type" in config:
                 self.task_type = config["task_type"]
+
+            # Set multi-label flag
+            if "is_multi_label" in config:
+                self.is_multi_label = config["is_multi_label"]
+            elif "task_type" in config and config["task_type"] == "multi-label":
+                self.is_multi_label = True
 
             print(f"  Model configured successfully")
             return True
@@ -217,29 +217,28 @@ class HuggingFaceAdapter(BaseModelAdapter):
 
     def postprocess(self, model_output: Any) -> Any:
         """
-        Postprocess model output to get class predictions.
+        Postprocess model output to get predictions.
 
         Args:
             model_output: Raw logits from model
 
         Returns:
-            Class ID predictions
+            Class ID predictions for single-label, probabilities for multi-label
         """
         try:
             if model_output is None:
                 return None
 
             # Convert logits to probabilities
-            probabilities = torch.softmax(model_output, dim=-1)
-
-            # Get predicted class IDs
-            predicted_class_ids = torch.argmax(probabilities, dim=-1)
-
-            # Convert to Python list
-            if isinstance(predicted_class_ids, torch.Tensor):
-                predicted_class_ids = predicted_class_ids.cpu().numpy()
-
-            return predicted_class_ids.tolist()
+            if self.is_multi_label:
+                # For multi-label, use sigmoid to get probabilities
+                probabilities = torch.sigmoid(model_output)
+                return probabilities.cpu().numpy().tolist()
+            else:
+                # For single-label, use softmax and get class IDs
+                probabilities = torch.softmax(model_output, dim=-1)
+                predicted_class_ids = torch.argmax(probabilities, dim=-1)
+                return predicted_class_ids.cpu().numpy().tolist()
 
         except Exception as e:
             print(f"Error in postprocessing: {e}")
@@ -252,6 +251,8 @@ class HuggingFaceAdapter(BaseModelAdapter):
             "type": self.model_type,
             "device": self.device,
             "task_type": self.task_type,
+            "is_multi_label": self.is_multi_label,
+            "output_type": self.output_type.value,
             "config": self.config,
         }
 
