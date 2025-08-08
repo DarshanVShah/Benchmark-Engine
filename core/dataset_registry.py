@@ -1,8 +1,13 @@
 """
 Dataset Registry for organizing datasets by task type.
 Provides standardized test suites for different ML tasks.
+Supports both local and remote datasets with automatic download.
 """
 
+import os
+import requests
+import tarfile
+import zipfile
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
@@ -25,11 +30,16 @@ class TaskType(Enum):
 class DatasetConfig:
     """Configuration for a dataset in the registry."""
     name: str
-    path: str
+    path: str  # Can be local path or remote URL
     task_type: TaskType
     config: Dict[str, Any]
     description: str
     expected_accuracy_range: Optional[tuple] = None  # (min, max) for validation
+    is_remote: bool = False
+    download_url: Optional[str] = None
+    local_cache_dir: str = "benchmark_datasets/localTestSets"
+    is_compressed: bool = False
+    extract_path: Optional[str] = None  # Path to extract compressed files
 
 
 class DatasetRegistry:
@@ -57,7 +67,8 @@ class DatasetRegistry:
                     "max_length": 512
                 },
                 description="Multi-label emotion detection dataset with 11 emotions",
-                expected_accuracy_range=(0.60, 0.85)
+                expected_accuracy_range=(0.60, 0.85),
+                is_remote=False
             ),
             DatasetConfig(
                 name="ISEAR",
@@ -71,7 +82,9 @@ class DatasetRegistry:
                     "max_length": 512
                 },
                 description="Single-label emotion classification with 7 emotions",
-                expected_accuracy_range=(0.70, 0.90)
+                expected_accuracy_range=(0.70, 0.90),
+                is_remote=True,
+                download_url="https://raw.githubusercontent.com/ISEAR/ISEAR/master/data/isear_dataset.txt"
             ),
             DatasetConfig(
                 name="GoEmotions",
@@ -89,7 +102,9 @@ class DatasetRegistry:
                     "max_length": 512
                 },
                 description="Large-scale multi-label emotion dataset with 27 emotions",
-                expected_accuracy_range=(0.50, 0.75)
+                expected_accuracy_range=(0.50, 0.75),
+                is_remote=True,
+                download_url="https://raw.githubusercontent.com/google-research/google-research/master/goemotions/data/test.tsv"
             )
         ]
         
@@ -107,7 +122,9 @@ class DatasetRegistry:
                     "max_length": 512
                 },
                 description="Stanford Sentiment Treebank - binary sentiment classification",
-                expected_accuracy_range=(0.85, 0.95)
+                expected_accuracy_range=(0.85, 0.95),
+                is_remote=True,
+                download_url="https://raw.githubusercontent.com/princeton-nlp/SimCSE/main/data/STS-B/sts-dev.csv"
             ),
             DatasetConfig(
                 name="IMDB",
@@ -121,7 +138,11 @@ class DatasetRegistry:
                     "max_length": 512
                 },
                 description="IMDB movie reviews - binary sentiment classification",
-                expected_accuracy_range=(0.80, 0.90)
+                expected_accuracy_range=(0.80, 0.90),
+                is_remote=True,
+                download_url="https://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz",
+                is_compressed=True,
+                extract_path="aclImdb/test"
             )
         ]
         
@@ -139,9 +160,85 @@ class DatasetRegistry:
                     "max_length": 512
                 },
                 description="AG News dataset - 4-class news classification",
-                expected_accuracy_range=(0.85, 0.95)
+                expected_accuracy_range=(0.85, 0.95),
+                is_remote=True,
+                download_url="https://raw.githubusercontent.com/mhjabreel/CharCnn_Keras/master/data/ag_news_csv/test.csv"
             )
         ]
+    
+    def download_dataset(self, dataset_config: DatasetConfig) -> bool:
+        """Download a remote dataset to local cache."""
+        if not dataset_config.is_remote or not dataset_config.download_url:
+            return True  # Already local
+        
+        try:
+            print(f"Downloading dataset {dataset_config.name} from {dataset_config.download_url}")
+            
+            # Create cache directory if it doesn't exist
+            os.makedirs(dataset_config.local_cache_dir, exist_ok=True)
+            
+            # Download the file
+            response = requests.get(dataset_config.download_url, stream=True)
+            response.raise_for_status()
+            
+            # Determine file extension and download path
+            if dataset_config.is_compressed:
+                download_path = dataset_config.path + ".tar.gz"
+            else:
+                download_path = dataset_config.path
+            
+            # Save to local path
+            with open(download_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            
+            # Handle compressed files
+            if dataset_config.is_compressed:
+                print(f"Extracting compressed dataset {dataset_config.name}")
+                if download_path.endswith('.tar.gz'):
+                    with tarfile.open(download_path, 'r:gz') as tar:
+                        tar.extractall(path=dataset_config.local_cache_dir)
+                elif download_path.endswith('.zip'):
+                    with zipfile.ZipFile(download_path, 'r') as zip_ref:
+                        zip_ref.extractall(dataset_config.local_cache_dir)
+                
+                # Clean up downloaded file
+                os.remove(download_path)
+                
+                # Update path if extraction created a different structure
+                if dataset_config.extract_path:
+                    extracted_path = os.path.join(dataset_config.local_cache_dir, dataset_config.extract_path)
+                    if os.path.exists(extracted_path):
+                        # Copy or move files to expected location
+                        import shutil
+                        if os.path.isdir(extracted_path):
+                            # For directories, we might need to find the actual data file
+                            for root, dirs, files in os.walk(extracted_path):
+                                for file in files:
+                                    if file.endswith('.txt') or file.endswith('.tsv') or file.endswith('.csv'):
+                                        shutil.copy2(os.path.join(root, file), dataset_config.path)
+                                        break
+                                break
+                        else:
+                            shutil.copy2(extracted_path, dataset_config.path)
+            
+            print(f"✓ Dataset {dataset_config.name} downloaded successfully")
+            return True
+            
+        except Exception as e:
+            print(f"✗ Failed to download dataset {dataset_config.name}: {e}")
+            return False
+    
+    def ensure_dataset_available(self, dataset_config: DatasetConfig) -> bool:
+        """Ensure dataset is available locally, downloading if necessary."""
+        if os.path.exists(dataset_config.path):
+            return True
+        
+        if dataset_config.is_remote:
+            return self.download_dataset(dataset_config)
+        else:
+            print(f"Local dataset not found: {dataset_config.path}")
+            return False
     
     def get_datasets_for_task(self, task_type: TaskType) -> List[DatasetConfig]:
         """Get all datasets for a specific task type."""
