@@ -20,7 +20,7 @@ from .dataset_registry import (
     TaskType
 )
 
-from .types import BenchmarkConfig
+from .types import BenchmarkConfig, ModelType
 
 __all__ = [
     # Core engine
@@ -39,5 +39,6 @@ __all__ = [
     "TaskType",
     
     # Configuration
-    "BenchmarkConfig"
+    "BenchmarkConfig",
+    "ModelType"
 ]
