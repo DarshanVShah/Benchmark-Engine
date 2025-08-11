@@ -21,28 +21,27 @@ from core.dataset_registry import DatasetRegistry, TaskType
 
 def test_tflite_emotion_classifier():
     """Test TFLite emotion classifier against all available datasets."""
-    print("🚀 TFLITE EMOTION CLASSIFICATION COMPREHENSIVE TEST")
-    print("=" * 70)
+    print("TFLITE EMOTION CLASSIFICATION COMPREHENSIVE TEST")
     
     # Check if TFLite model exists
     model_path = "models/notQuantizedModel.tflite"
     if not os.path.exists(model_path):
-        print(f"❌ TFLite model not found: {model_path}")
+        print(f"TFLite model not found: {model_path}")
         print("Please ensure your TFLite model is in the models/ directory.")
         return False
     
-    print(f"✓ TFLite model found: {model_path}")
+    print(f"TFLite model found: {model_path}")
     
     # Get available datasets
     registry = DatasetRegistry()
     emotion_datasets = registry.get_datasets_for_task(TaskType.EMOTION_CLASSIFICATION)
     
     if not emotion_datasets:
-        print("❌ No emotion datasets found in registry")
+        print("No emotion datasets found in registry")
         print("Please add datasets to the registry or place them in benchmark_datasets/localTestSets/")
         return False
     
-    print(f"✓ Found {len(emotion_datasets)} emotion dataset(s)")
+    print(f"Found {len(emotion_datasets)} emotion dataset(s)")
     
     # Test each dataset
     results = {}
@@ -59,7 +58,7 @@ def test_tflite_emotion_classifier():
         
         # Check dataset availability
         if not registry.ensure_dataset_available(dataset_config):
-            print(f"❌ Dataset {dataset_config.name} not available")
+            print(f"Dataset {dataset_config.name} not available")
             continue
         
         try:
@@ -82,30 +81,30 @@ def test_tflite_emotion_classifier():
             
             # Load model
             if not engine.load_model("tflite", model_path, model_config):
-                print(f"❌ Failed to load model for {dataset_config.name}")
+                print(f"Failed to load model for {dataset_config.name}")
                 continue
             
             # Load dataset
             if not engine.load_dataset("template", dataset_config.path, dataset_config.config):
-                print(f"❌ Failed to load dataset {dataset_config.name}")
+                print(f"Failed to load dataset {dataset_config.name}")
                 continue
             
             # Add appropriate metric
             if is_multi_label:
                 metric = TemplateMultiLabelMetric(metric_type="accuracy", threshold=0.5)
-                print(f"✓ Using multi-label accuracy metric")
+                print(f"Using multi-label accuracy metric")
             else:
                 metric = TemplateAccuracyMetric(input_type="class_id")
-                print(f"✓ Using single-label accuracy metric")
+                print(f"Using single-label accuracy metric")
             
             engine.add_metric("template", metric)
             
             # Validate setup
             if not engine.validate_setup():
-                print(f"❌ Setup validation failed for {dataset_config.name}")
+                print(f"Setup validation failed for {dataset_config.name}")
                 continue
             
-            print(f"✓ Setup validation passed")
+            print(f"Setup validation passed")
             print(f"  - Dataset outputs: {engine.dataset.output_type.value}")
             print(f"  - Model expects: {engine.model_adapter.input_type.value}")
             print(f"  - Model outputs: {engine.model_adapter.output_type.value}")
@@ -127,49 +126,47 @@ def test_tflite_emotion_classifier():
                     results[dataset_config.name] = accuracy
                     datasets_tested += 1
                     
-                    print(f"🎯 Accuracy: {accuracy:.4f}")
+                    print(f"Accuracy: {accuracy:.4f}")
                     
                     # Validate against expected range
                     if dataset_config.expected_accuracy_range:
                         min_acc, max_acc = dataset_config.expected_accuracy_range
                         if min_acc <= accuracy <= max_acc:
-                            print(f"✅ PASS: Accuracy within expected range ({min_acc:.2f}-{max_acc:.2f})")
+                            print(f"PASS: Accuracy within expected range ({min_acc:.2f}-{max_acc:.2f})")
                         else:
-                            print(f"⚠️  WARNING: Accuracy outside expected range ({min_acc:.2f}-{max_acc:.2f})")
+                            print(f"WARNING: Accuracy outside expected range ({min_acc:.2f}-{max_acc:.2f})")
                 else:
-                    print(f"❌ No accuracy found in results for {dataset_config.name}")
+                    print(f"No accuracy found in results for {dataset_config.name}")
             else:
-                print(f"❌ No results obtained for {dataset_config.name}")
+                print(f"No results obtained for {dataset_config.name}")
                 
         except Exception as e:
-            print(f"❌ Error testing {dataset_config.name}: {e}")
+            print(f"Error testing {dataset_config.name}: {e}")
             continue
     
     # Summary
-    print(f"\n{'='*70}")
     print("COMPREHENSIVE TEST RESULTS")
-    print(f"{'='*70}")
     
     if results:
         for dataset_name, accuracy in results.items():
             dataset_config = registry.get_dataset_by_name(dataset_name)
             if dataset_config and dataset_config.expected_accuracy_range:
                 min_acc, max_acc = dataset_config.expected_accuracy_range
-                status = "✅ PASS" if min_acc <= accuracy <= max_acc else "❌ FAIL"
+                status = "PASS" if min_acc <= accuracy <= max_acc else "FAIL"
                 print(f"{status} {dataset_name}: {accuracy:.4f} (expected: {min_acc:.2f}-{max_acc:.2f})")
             else:
-                print(f"✅ PASS {dataset_name}: {accuracy:.4f}")
+                print(f"PASS {dataset_name}: {accuracy:.4f}")
         
         print(f"\nSummary: {datasets_tested}/{len(emotion_datasets)} datasets tested successfully")
         
         if datasets_tested == len(emotion_datasets):
-            print("🎉 All tests passed! TFLite emotion classifier is working correctly.")
+            print("All tests passed! TFLite emotion classifier is working correctly.")
             return True
         else:
-            print("⚠️  Some tests failed. Check the error messages above.")
+            print("Some tests failed. Check the error messages above.")
             return False
     else:
-        print("❌ No datasets were tested successfully")
+        print("No datasets were tested successfully")
         print("\nTo add your own datasets:")
         print("1. Place dataset files in benchmark_datasets/localTestSets/")
         print("2. Update the dataset registry in core/dataset_registry.py")
@@ -182,15 +179,15 @@ def main():
     try:
         success = test_tflite_emotion_classifier()
         if success:
-            print("\n✅ Comprehensive test completed successfully!")
+            print("\nComprehensive test completed successfully!")
         else:
-            print("\n❌ Some tests failed. Check the error messages above.")
+            print("\nSome tests failed. Check the error messages above.")
         return success
     except KeyboardInterrupt:
-        print("\n\n⏹️  Test interrupted by user")
+        print("\nTest interrupted by user")
         return False
     except Exception as e:
-        print(f"\n❌ Unexpected error: {e}")
+        print(f"\nUnexpected error: {e}")
         return False
 
 

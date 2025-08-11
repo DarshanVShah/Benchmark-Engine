@@ -17,8 +17,7 @@ from metrics.template_metric import TemplateMultiLabelMetric
 
 def run_quick_tflite_test():
     """Run a quick test of the TFLite emotion classifier."""
-    print("⚡ QUICK TFLITE EMOTION CLASSIFIER TEST")
-    print("="*50)
+    print("QUICK TFLITE EMOTION CLASSIFIER TEST")
     
     # Create engine
     engine = BenchmarkEngine()
@@ -37,15 +36,14 @@ def run_quick_tflite_test():
         "is_multi_label": True
     }
     
-    print("1. Loading TFLite Model...")
     success = engine.load_model("tflite", model_path, model_config)
     if not success:
-        print("❌ Failed to load TFLite model")
+        print("Failed to load TFLite model")
         print("Note: This requires TensorFlow to be installed")
         print("Install with: pip install tensorflow")
         return False
     
-    print("✓ TFLite model loaded successfully")
+    print("TFLite model loaded successfully")
     
     # Load local dataset
     dataset_config = {
@@ -58,33 +56,30 @@ def run_quick_tflite_test():
     }
     
     dataset_path = "benchmark_datasets/localTestSets/2018-E-c-En-test-gold.txt"
-    print("2. Loading Local Dataset...")
     success = engine.load_dataset("template", dataset_path, dataset_config)
     if not success:
-        print("❌ Failed to load dataset")
+        print("Failed to load dataset")
         return False
     
-    print("✓ Dataset loaded successfully")
+    print("Dataset loaded successfully")
     
     # Add metric
     metric = TemplateMultiLabelMetric(metric_type="accuracy", threshold=0.5)
     engine.metrics = [metric]
     
     # Validate setup
-    print("3. Validating Setup...")
     success = engine.validate_setup()
     if not success:
-        print("❌ Setup validation failed")
+        print("Setup validation failed")
         return False
     
-    print("✓ Setup validation passed")
+    print("Setup validation passed")
     print(f"  - Dataset outputs: {engine.dataset.output_type.value}")
     print(f"  - Model expects: {engine.model_adapter.input_type.value}")
     print(f"  - Model outputs: {engine.model_adapter.output_type.value}")
     print(f"  - Metric expects: {engine.metrics[0].expected_input_type.value}")
     
     # Run quick benchmark
-    print("4. Running Benchmark...")
     try:
         engine.configure_benchmark({
             "num_samples": 20,  # Quick test with 20 samples
@@ -96,9 +91,7 @@ def run_quick_tflite_test():
         
         results = engine.run_benchmark()
         
-        print("\n" + "="*50)
-        print("BENCHMARK RESULTS")
-        print("="*50)
+        print("\nBENCHMARK RESULTS")
         engine.print_results()
         
         # Extract accuracy for summary
@@ -106,46 +99,45 @@ def run_quick_tflite_test():
             for metric_name, metric_values in results["metrics"].items():
                 if isinstance(metric_values, dict) and "accuracy" in metric_values:
                     accuracy = metric_values["accuracy"]
-                    print(f"\n🎯 Final Accuracy: {accuracy:.4f}")
+                    print(f"\nFinal Accuracy: {accuracy:.4f}")
                     break
         
-        print("\n🎉 Quick test completed successfully!")
+        print("\nQuick test completed successfully!")
         return True
         
     except Exception as e:
-        print(f"❌ Benchmark failed: {e}")
+        print(f"Benchmark failed: {e}")
         return False
 
 
 def main():
     """Main test function."""
-    print("🚀 TFLITE EMOTION CLASSIFIER QUICK TEST")
-    print("="*50)
+    print("TFLITE EMOTION CLASSIFIER QUICK TEST")
     print("Testing TFLite emotion classifier with local dataset")
     
     # Check if TensorFlow is available
     try:
         import tensorflow as tf
-        print(f"✓ TensorFlow available: {tf.__version__}")
+        print(f"TensorFlow available: {tf.__version__}")
     except ImportError:
-        print("❌ TensorFlow not available. Please install: pip install tensorflow")
+        print("TensorFlow not available. Please install: pip install tensorflow")
         return False
     
     # Check if TFLite model exists
     model_path = "models/notQuantizedModel.tflite"
     if not os.path.exists(model_path):
-        print(f"❌ TFLite model not found: {model_path}")
+        print(f"TFLite model not found: {model_path}")
         return False
     
-    print(f"✓ TFLite model found: {model_path}")
+    print(f"TFLite model found: {model_path}")
     
     # Run the test
     success = run_quick_tflite_test()
     
     if success:
-        print("\n✅ Test passed! TFLite emotion classifier is working correctly.")
+        print("\nTest passed! TFLite emotion classifier is working correctly.")
     else:
-        print("\n❌ Test failed. Check the error messages above.")
+        print("\nTest failed. Check the error messages above.")
 
 
 if __name__ == "__main__":
