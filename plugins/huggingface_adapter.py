@@ -168,19 +168,34 @@ class HuggingFaceAdapter(BaseModelAdapter):
         Preprocess text input for HuggingFace models.
 
         Args:
-            raw_input: Raw text input from dataset
+            raw_input: Raw text input from dataset (can be string or dict with 'text' key)
 
         Returns:
             Tokenized inputs ready for model inference
         """
         try:
-            if not isinstance(raw_input, str):
-                print(f"Warning: Expected string input, got {type(raw_input)}")
-                raw_input = str(raw_input)
+            # Extract text from input
+            if isinstance(raw_input, dict):
+                if "text" in raw_input:
+                    text = raw_input["text"]
+                elif "input" in raw_input:
+                    text = raw_input["input"]
+                else:
+                    # Try to find any string value
+                    text = next((v for v in raw_input.values() if isinstance(v, str)), "")
+            elif isinstance(raw_input, str):
+                text = raw_input
+            else:
+                print(f"Warning: Expected string or dict input, got {type(raw_input)}")
+                text = str(raw_input)
+
+            if not text:
+                print("Warning: Empty text input")
+                return None
 
             # Tokenize the text
             inputs = self.tokenizer(
-                raw_input,
+                text,
                 return_tensors="pt",
                 truncation=True,
                 max_length=self.config.get("max_length", 512),

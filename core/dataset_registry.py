@@ -70,6 +70,22 @@ class DatasetRegistry:
                 expected_accuracy_range=(0.60, 0.85),
                 is_remote=False
             ),
+            DatasetConfig(
+                name="GoEmotions",
+                path="benchmark_datasets/localTestSets/goemotions_test.tsv",
+                task_type=TaskType.EMOTION_CLASSIFICATION,
+                config={
+                    "file_format": "tsv",
+                    "text_column": "text",
+                    "label_columns": ["label"],
+                    "task_type": "single-label",
+                    "max_length": 512
+                },
+                description="Large-scale emotion dataset with 27 emotions from Reddit (single-label format)",
+                expected_accuracy_range=(0.50, 0.75),
+                is_remote=True,
+                download_url="https://raw.githubusercontent.com/google-research/google-research/master/goemotions/data/test.tsv"
+            ),
             # Note: Users can add their own datasets by:
             # 1. Placing dataset files in benchmark_datasets/localTestSets/
             # 2. Using the add_dataset() method
