@@ -37,10 +37,10 @@ class GoEmotionsDataset(TemplateDataset):
                     if not text:
                         continue
                     
-                    # Create sample
+                    # Create sample with proper column names that match the config
                     sample = {
-                        "text": text,
-                        "label": label
+                        "text": text,  # This should match text_column in config
+                        "label": label  # This should match label_columns in config
                     }
                     
                     # Add ID if available
@@ -50,6 +50,40 @@ class GoEmotionsDataset(TemplateDataset):
                     self.data.append(sample)
         
         print(f"  Loaded {len(self.data)} samples from GoEmotions dataset")
+        print(f"  Sample data structure: {self.data[0] if self.data else 'No data'}")
+        print(f"  Text column: {self.text_column}")
+        print(f"  Label columns: {self.label_columns}")
+    
+    def get_samples_with_targets(self, num_samples: Optional[int] = None) -> List[Tuple[Any, Any]]:
+        """Override to ensure proper sample extraction."""
+        if not self.dataset_loaded:
+            raise RuntimeError("Dataset not loaded")
+
+        samples_with_targets = []
+        data_subset = self.data[:num_samples] if num_samples else self.data
+
+        print(f"  Processing {len(data_subset)} samples for GoEmotions dataset")
+        
+        for i, item in enumerate(data_subset):
+            # Extract text using the configured text column
+            text = item.get(self.text_column, "")
+            if not text or not isinstance(text, str):
+                print(f"    Skipping sample {i}: invalid text '{text}'")
+                continue
+
+            # Extract targets based on task type
+            target = self._extract_targets(item)
+
+            # Create input format
+            input_sample = {"text": text[: self.max_length]}
+
+            samples_with_targets.append((input_sample, target))
+            
+            if i < 3:  # Debug first few samples
+                print(f"    Sample {i}: text='{text[:50]}...', target={target}")
+
+        print(f"  Generated {len(samples_with_targets)} samples with targets")
+        return samples_with_targets
     
     def _extract_targets(self, item: Dict[str, Any]) -> Any:
         """Extract emotion label from GoEmotions format."""

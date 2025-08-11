@@ -1,438 +1,360 @@
 """
-Enhanced Benchmark Engine with multi-dataset support.
+Enhanced BenchmarkEngine
+
+Acts as an "exam administrator" providing standardized testing infrastructure.
+Users provide models wrapped in adapters, we provide datasets and evaluation.
 """
 
 import time
-import psutil
+import traceback
 from typing import Dict, Any, List, Optional, Type
-from .interfaces import BaseModelAdapter, BaseMetric, BaseDataset
-from .dataset_registry import DatasetRegistry, TaskType, DatasetConfig
-from .types import BenchmarkConfig
+from .interfaces import BaseModelAdapter, BaseDataset, BaseMetric, DataType, OutputType
+from .dataset_registry import DatasetRegistry, TaskType
+from .reporting import BenchmarkReporter
 
 
 class BenchmarkEngine:
-    """Enhanced benchmark engine with multi-dataset support."""
+    """
+    BenchmarkEngine - The "Exam Administrator"
+    
+    Provides standardized testing infrastructure and standard datasets.
+    Users provide models wrapped in adapters that conform to our interface.
+    """
     
     def __init__(self):
+        """Initialize the benchmark engine."""
         self.model_adapter: Optional[BaseModelAdapter] = None
         self.dataset: Optional[BaseDataset] = None
         self.metrics: List[BaseMetric] = []
-        self.results: Optional[Dict[str, Any]] = None
-        self.config = BenchmarkConfig()
+        self.registered_adapters: Dict[str, Type[BaseModelAdapter]] = {}
+        self.registered_datasets: Dict[str, Type[BaseDataset]] = {}
+        self.registered_metrics: Dict[str, Type[BaseMetric]] = {}
         self.dataset_registry = DatasetRegistry()
+        self.reporter = BenchmarkReporter()
+        self.last_results: Optional[Dict[str, Any]] = None
         
-        # Registry for components
-        self._adapters: Dict[str, Type[BaseModelAdapter]] = {}
-        self._metrics: Dict[str, Type[BaseMetric]] = {}
-        self._datasets: Dict[str, Type[BaseDataset]] = {}
-    
     def register_adapter(self, name: str, adapter_class: Type[BaseModelAdapter]):
         """Register a model adapter."""
-        self._adapters[name] = adapter_class
-    
-    def register_metric(self, name: str, metric_class: Type[BaseMetric]):
-        """Register a metric."""
-        self._metrics[name] = metric_class
-    
+        self.registered_adapters[name] = adapter_class
+        
     def register_dataset(self, name: str, dataset_class: Type[BaseDataset]):
-        """Register a dataset adapter."""
-        self._datasets[name] = dataset_class
-    
-    def configure_benchmark(self, config: Dict[str, Any]):
-        """Configure benchmark parameters."""
-        for key, value in config.items():
-            if hasattr(self.config, key):
-                setattr(self.config, key, value)
-    
-    def load_model(self, adapter_name: str, model_path: str, model_config: Optional[Dict[str, Any]] = None) -> bool:
+        """Register a dataset class."""
+        self.registered_datasets[name] = dataset_class
+        
+    def register_metric(self, name: str, metric_class: Type[BaseMetric]):
+        """Register a metric class."""
+        self.registered_metrics[name] = metric_class
+        
+    def load_model(self, adapter_name: str, model_path: str, config: Dict[str, Any]) -> bool:
         """Load a model using the specified adapter."""
-        if adapter_name not in self._adapters:
-            print(f"Unknown adapter: {adapter_name}")
+        if adapter_name not in self.registered_adapters:
+            print(f"Adapter '{adapter_name}' not registered")
             return False
-        
-        adapter_class = self._adapters[adapter_name]
-        self.model_adapter = adapter_class()
-        
-        if not self.model_adapter.load(model_path):
-            print(f"Failed to load model: {model_path}")
-            return False
-        
-        if model_config:
-            self.model_adapter.configure(model_config)
-        
-        return True
-    
-    def load_dataset(self, dataset_name: str, dataset_path: str, dataset_config: Optional[Dict[str, Any]] = None) -> bool:
-        """Load a dataset using the specified adapter."""
-        if dataset_name not in self._datasets:
-            print(f"Unknown dataset adapter: {dataset_name}")
-            return False
-        
-        dataset_class = self._datasets[dataset_name]
-        self.dataset = dataset_class()
-        
-        if dataset_config:
-            success = self.dataset.load(dataset_path, dataset_config)
-        else:
-            success = self.dataset.load(dataset_path)
-        
-        if not success:
-            print(f"Failed to load dataset: {dataset_path}")
-            return False
-        
-        return True
-    
-    def add_metric(self, metric_name: str, metric_instance: Optional[BaseMetric] = None) -> bool:
-        """Add a metric to the benchmark."""
-        if metric_instance:
-            self.metrics.append(metric_instance)
+            
+        try:
+            adapter_class = self.registered_adapters[adapter_name]
+            self.model_adapter = adapter_class()
+            
+            # Load the model
+            if not self.model_adapter.load(model_path):
+                print(f"Failed to load model from {model_path}")
+                return False
+                
+            # Configure the model
+            if not self.model_adapter.configure(config):
+                print(f"Failed to configure model")
+                return False
+                
+            print(f"Model loaded successfully")
             return True
-        
-        if metric_name not in self._metrics:
-            print(f"Unknown metric: {metric_name}")
+            
+        except Exception as e:
+            print(f"Error loading model: {e}")
             return False
+            
+    def load_dataset(self, dataset_name: str, dataset_path: str, config: Dict[str, Any]) -> bool:
+        """Load a dataset using the specified dataset class."""
+        if dataset_name not in self.registered_datasets:
+            print(f"Dataset class '{dataset_name}' not registered")
+            return False
+            
+        try:
+            dataset_class = self.registered_datasets[dataset_name]
+            self.dataset = dataset_class()
+            
+            # Load the dataset
+            if not self.dataset.load(dataset_path, config):
+                print(f"Failed to load dataset from {dataset_path}")
+                return False
+                
+            print(f"Dataset loaded successfully")
+            return True
+            
+        except Exception as e:
+            print(f"Error loading dataset: {e}")
+            return False
+            
+    def add_metric(self, metric_name: str, metric: BaseMetric):
+        """Add a metric for evaluation."""
+        self.metrics.append(metric)
         
-        metric_class = self._metrics[metric_name]
-        metric_instance = metric_class()
-        self.metrics.append(metric_instance)
-        return True
-    
     def validate_setup(self) -> bool:
-        """Validate that all components are properly set up."""
+        """Validate that the setup is ready for benchmarking."""
         if not self.model_adapter:
             print("No model adapter loaded")
             return False
-        
+            
         if not self.dataset:
             print("No dataset loaded")
             return False
-        
+            
         if not self.metrics:
             print("No metrics added")
             return False
-        
-        # Validate compatibility between model and dataset
-        if not self.model_adapter.validate_compatibility(self.dataset):
-            print(f"Model adapter input type ({self.model_adapter.input_type.value}) is not compatible with dataset output type ({self.dataset.output_type.value})")
+            
+        # Check type compatibility
+        if self.model_adapter.input_type != self.dataset.output_type:
+            print(f"Model input type {self.model_adapter.input_type.value} "
+                  f"doesn't match dataset output type {self.dataset.output_type.value}")
             return False
-        
-        # Validate compatibility between model output and metrics
+            
+        # Check metric compatibility
         for metric in self.metrics:
-            if self.model_adapter.output_type != metric.expected_input_type:
-                print(f"Model output type {self.model_adapter.output_type.value} is not compatible with metric {metric.get_name()} expected input type {metric.expected_input_type.value}")
+            if metric.expected_input_type != self.model_adapter.output_type:
+                print(f"Model output type {self.model_adapter.output_type.value} "
+                      f"doesn't match metric expected input type {metric.expected_input_type.value}")
                 return False
-        
+                
+        print("Setup validation passed")
         return True
-    
-    def run_benchmark(self, num_samples: Optional[int] = None, warmup_runs: Optional[int] = None) -> Dict[str, Any]:
-        """Run the complete benchmark pipeline."""
-        # Use config values if not provided
-        if num_samples is None:
-            num_samples = self.config.num_samples
-        if warmup_runs is None:
-            warmup_runs = self.config.warmup_runs
         
-        # Validate setup
+    def run_benchmark(self, num_samples: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """Run the benchmark and return results."""
         if not self.validate_setup():
-            raise RuntimeError("Benchmark setup validation failed")
-        
-        # Get samples with targets
-        samples_with_targets = self.dataset.get_samples_with_targets(num_samples)
-        if not samples_with_targets:
-            raise RuntimeError("No samples available")
-        
-        # Separate inputs and targets
-        inputs = [sample for sample, _ in samples_with_targets]
-        targets = [target for _, target in samples_with_targets]
-        
-        # Warmup runs
-        print(f"Running {warmup_runs} warmup runs...")
-        for _ in range(warmup_runs):
-            _ = self.model_adapter.predict(inputs[0])
-        
-        # Memory profiling setup
-        initial_memory = psutil.Process().memory_info().rss if self.config.profile_memory else 0
-        
-        # Actual benchmark
-        print(f"Running benchmark on {len(inputs)} samples...")
-        start_time = time.time()
-        
-        predictions = []
-        inference_times = []
-        
-        for i, (sample, target) in enumerate(samples_with_targets):
-            sample_start = time.time()
+            return None
             
-            # Use the Template Method pattern predict() method
-            prediction = self.model_adapter.predict(sample)
+        try:
+            print(f"Running benchmark on {num_samples or 'all'} samples...")
             
-            sample_time = time.time() - sample_start
+            # Get samples
+            if num_samples:
+                samples_with_targets = self.dataset.get_samples_with_targets(num_samples)
+            else:
+                samples_with_targets = self.dataset.get_samples_with_targets()
+                
+            if not samples_with_targets:
+                print("No samples available for testing")
+                return None
+                
+            # Warmup runs
+            print("Running 5 warmup runs...")
+            for _ in range(5):
+                if samples_with_targets:
+                    sample_input, _ = samples_with_targets[0]
+                    self.model_adapter.predict(sample_input)
+                    
+            # Actual benchmark
+            start_time = time.time()
+            results = []
             
-            predictions.append(prediction)
-            inference_times.append(sample_time)
+            print(f"Running benchmark on {len(samples_with_targets)} samples...")
+            for i, (sample_input, target) in enumerate(samples_with_targets):
+                # Run prediction
+                prediction = self.model_adapter.predict(sample_input)
+                
+                # Store result
+                results.append({
+                    "input": sample_input,
+                    "target": target,
+                    "prediction": prediction
+                })
+                
+                # Progress update
+                if (i + 1) % 10 == 0:
+                    print(f"Processed {i + 1}/{len(samples_with_targets)} samples")
+                    
+            end_time = time.time()
+            total_time = end_time - start_time
             
-            if (i + 1) % 10 == 0:
-                print(f"Processed {i + 1}/{len(inputs)} samples")
-        
-        total_time = time.time() - start_time
-        
-        # Memory profiling
-        final_memory = psutil.Process().memory_info().rss if self.config.profile_memory else 0
-        memory_used = (final_memory - initial_memory) / 1024 / 1024  # MB
-        
-        # Calculate metrics
-        metric_results = {}
-        for metric in self.metrics:
-            metric_name = metric.get_name()
+            # Calculate metrics
+            metric_results = {}
+            for metric in self.metrics:
+                metric_name = metric.__class__.__name__
+                
+                # Extract predictions and targets for metrics
+                predictions = [result["prediction"] for result in results]
+                targets = [result["target"] for result in results]
+                
+                metric_results[metric_name] = metric.calculate(predictions, targets)
+                
+            # Calculate timing metrics
+            avg_inference_time = total_time / len(samples_with_targets)
+            throughput = len(samples_with_targets) / total_time
             
-            # Validate inputs for this metric
-            if not metric.validate_inputs(predictions, targets):
-                print(f"Warning: Invalid inputs for metric {metric_name}")
-                continue
+            # Compile results
+            benchmark_results = {
+                "model_info": self.model_adapter.get_model_info(),
+                "dataset_info": self.dataset.get_dataset_info(),
+                "benchmark_config": {
+                    "num_samples": len(samples_with_targets),
+                    "batch_size": 1,
+                    "precision": "fp32",
+                    "device": "cpu"
+                },
+                "timing": {
+                    "total_time": total_time,
+                    "average_inference_time": avg_inference_time,
+                    "throughput": throughput
+                },
+                "metrics": metric_results,
+                "raw_results": results
+            }
             
-            metric_values = metric.calculate(predictions, targets)
-            metric_results[metric_name] = metric_values
-        
-        # Compile results
-        self.results = {
-            "model_info": self.model_adapter.get_model_info(),
-            "dataset_info": self.dataset.get_dataset_info(),
-            "benchmark_config": {
-                "num_samples": len(inputs),
-                "warmup_runs": warmup_runs,
-                "batch_size": self.config.batch_size,
-                "precision": self.config.precision,
-                "device": self.config.device
-            },
-            "timing": {
-                "total_time": total_time,
-                "average_inference_time": sum(inference_times) / len(inference_times),
-                "min_inference_time": min(inference_times),
-                "max_inference_time": max(inference_times),
-                "throughput": len(inputs) / total_time
-            },
-            "memory": {
-                "memory_used_mb": memory_used
-            },
-            "metrics": metric_results
-        }
-        
-        return self.results
-    
-    def run_multi_dataset_benchmark(self, task_type: TaskType, model_path: str, 
-                                  adapter_name: str, model_config: Optional[Dict[str, Any]] = None,
-                                  dataset_names: Optional[List[str]] = None) -> Dict[str, Any]:
+            self.last_results = benchmark_results
+            return benchmark_results
+            
+        except Exception as e:
+            print(f"Benchmark failed: {e}")
+            traceback.print_exc()
+            return None
+            
+    def run_comprehensive_benchmark(self, task_type: TaskType, num_samples: Optional[int] = None) -> Dict[str, Any]:
         """
-        Run benchmark across multiple datasets for a specific task type.
+        Run comprehensive benchmark across all datasets for a task type.
         
-        Args:
-            task_type: The type of ML task
-            model_path: Path to the model file
-            adapter_name: Name of the adapter to use
-            model_config: Configuration for the model
-            dataset_names: Specific dataset names to test (None = all datasets for task)
-        
-        Returns:
-            Dictionary containing results for all datasets
+        This is the main administrator function that provides comprehensive evaluation.
         """
-        print(f"Running multi-dataset benchmark for task: {task_type.value}")
+        print(f"Running comprehensive benchmark for task: {task_type.value}")
         
-        # Get datasets for this task
-        available_datasets = self.dataset_registry.get_datasets_for_task(task_type)
-        if not available_datasets:
-            print(f"No datasets available for task: {task_type.value}")
+        # Get all datasets for this task
+        datasets = self.dataset_registry.get_datasets_for_task(task_type)
+        if not datasets:
+            print(f"No datasets found for task {task_type.value}")
             return {}
-        
-        # Filter by dataset names if specified
-        if dataset_names:
-            available_datasets = [d for d in available_datasets if d.name in dataset_names]
-        
-        print(f"Testing on {len(available_datasets)} datasets:")
-        for dataset in available_datasets:
-            print(f"  - {dataset.name}: {dataset.description}")
-        
-        # Load model once
-        if not self.load_model(adapter_name, model_path, model_config):
-            return {}
-        
-        # Run benchmarks on each dataset
-        all_results = {
+            
+        comprehensive_results = {
             "task_type": task_type.value,
-            "model_path": model_path,
-            "adapter": adapter_name,
-            "datasets": {}
+            "datasets_tested": [],
+            "overall_assessment": {},
+            "detailed_results": {}
         }
         
-        for dataset_config in available_datasets:
-            print(f"\n{'='*50}")
-            print(f"Testing on dataset: {dataset_config.name}")
-            print(f"Description: {dataset_config.description}")
-            print(f"Expected accuracy range: {dataset_config.expected_accuracy_range}")
-            print(f"{'='*50}")
+        # Test each dataset
+        for dataset_config in datasets:
+            print(f"\nTesting dataset: {dataset_config.name}")
             
-            # Ensure dataset is available
+            # Check availability
             if not self.dataset_registry.ensure_dataset_available(dataset_config):
-                print(f"Failed to ensure dataset availability: {dataset_config.name}")
-                all_results["datasets"][dataset_config.name] = {
-                    "dataset_info": dataset_config,
-                    "error": "Dataset not available"
-                }
+                print(f"Dataset {dataset_config.name} not available")
                 continue
-            
-            # Load dataset
-            if not self.load_dataset("template", dataset_config.path, dataset_config.config):
-                print(f"Failed to load dataset: {dataset_config.name}")
-                all_results["datasets"][dataset_config.name] = {
-                    "dataset_info": dataset_config,
-                    "error": "Failed to load dataset"
-                }
-                continue
-            
-            # Configure model for this dataset's task type
-            if model_config is None:
-                model_config = {}
-            
-            # Update model config based on dataset task type
-            dataset_task_type = dataset_config.config.get("task_type", "single-label")
-            if dataset_task_type == "multi-label":
-                model_config["is_multi_label"] = True
-                model_config["task_type"] = "multi-label"
-            else:
-                model_config["is_multi_label"] = False
-                model_config["task_type"] = "single-label"
-            
-            # Reconfigure model if needed
-            if self.model_adapter:
-                self.model_adapter.configure(model_config)
-            
-            # Add appropriate metrics based on task type
-            self.metrics.clear()
-            if dataset_task_type == "multi-label":
-                # Use multi-label metric that expects probabilities
-                from metrics.template_metric import TemplateMultiLabelMetric
-                multilabel_metric = TemplateMultiLabelMetric(metric_type="accuracy", threshold=0.5)
-                self.metrics.append(multilabel_metric)
-            else:
-                # Use single-label metric that expects class IDs
-                from metrics.simple_accuracy_metric import SimpleAccuracyMetric
-                accuracy_metric = SimpleAccuracyMetric()
-                self.metrics.append(accuracy_metric)
-            
-            # Run benchmark
+                
             try:
-                results = self.run_benchmark()
-                all_results["datasets"][dataset_config.name] = {
-                    "dataset_info": dataset_config,
-                    "benchmark_results": results
-                }
-                print(f"✓ Completed benchmark for {dataset_config.name}")
+                # Load dataset
+                if not self.load_dataset("template", dataset_config.path, dataset_config.config):
+                    print(f"Failed to load dataset {dataset_config.name}")
+                    continue
+                    
+                # Run benchmark
+                results = self.run_benchmark(num_samples)
+                if results:
+                    # Generate comprehensive report
+                    report = self.reporter.generate_comprehensive_report(
+                        benchmark_results=results,
+                        model_info=self.model_adapter.get_model_info(),
+                        dataset_info=dataset_config.__dict__,
+                        metrics_info=[{"name": m.__class__.__name__} for m in self.metrics],
+                        test_config={"task_type": task_type.value, "num_samples": num_samples}
+                    )
+                    
+                    # Store results
+                    comprehensive_results["datasets_tested"].append(dataset_config.name)
+                    comprehensive_results["detailed_results"][dataset_config.name] = report
+                    
+                    # Print administrator report
+                    self.reporter.print_administrator_report(report)
+                    
+                    # Export to JSON
+                    json_file = self.reporter.export_to_json(report)
+                    print(f"Results exported to: {json_file}")
+                    
             except Exception as e:
-                print(f"✗ Failed benchmark for {dataset_config.name}: {e}")
-                all_results["datasets"][dataset_config.name] = {
-                    "dataset_info": dataset_config,
-                    "error": str(e)
-                }
-        
-        # Validate results against expected ranges
-        validation_results = {}
-        for dataset_name, dataset_results in all_results["datasets"].items():
-            if "benchmark_results" in dataset_results:
-                metrics = dataset_results["benchmark_results"]["metrics"]
-                for metric_name, metric_value in metrics.items():
-                    if isinstance(metric_value, dict) and "accuracy" in metric_value:
-                        validation_results[dataset_name] = metric_value["accuracy"]
-        
-        validation_report = self.dataset_registry.validate_results(task_type, validation_results)
-        all_results["validation"] = validation_report
-        
-        return all_results
-    
-    def print_results(self):
-        """Print benchmark results."""
-        if not self.results:
-            print("No results to display")
-            return
-        
-        print("\n" + "="*50)
-        print("BENCHMARK RESULTS")
-        print("="*50)
-        
-        # Model info
-        print(f"Model: {self.results['model_info']['name']}")
-        print(f"Type: {self.results['model_info']['type']}")
-        
-        # Dataset info
-        print(f"Dataset: {self.results['dataset_info']['name']}")
-        print(f"Samples: {self.results['dataset_info']['num_samples']}")
-        
-        # Timing
-        timing = self.results['timing']
-        print(f"\nTiming:")
-        print(f"  Total time: {timing['total_time']:.2f}s")
-        print(f"  Average inference: {timing['average_inference_time']*1000:.2f}ms")
-        print(f"  Throughput: {timing['throughput']:.2f} samples/s")
-        
-        # Memory
-        if 'memory' in self.results:
-            print(f"  Memory used: {self.results['memory']['memory_used_mb']:.2f} MB")
-        
-        # Metrics
-        print(f"\nMetrics:")
-        for metric_name, metric_values in self.results['metrics'].items():
-            if isinstance(metric_values, dict):
-                for key, value in metric_values.items():
-                    print(f"  {metric_name} - {key}: {value:.4f}")
-            else:
-                print(f"  {metric_name}: {metric_values:.4f}")
-        
-        print("="*50)
-    
-    def print_multi_dataset_results(self, results: Dict[str, Any]):
-        """Print multi-dataset benchmark results."""
-        print("\n" + "="*60)
-        print("MULTI-DATASET BENCHMARK RESULTS")
-        print("="*60)
-        
-        print(f"Task Type: {results['task_type']}")
-        print(f"Model: {results['model_path']}")
-        print(f"Adapter: {results['adapter']}")
-        
-        print(f"\nDataset Results:")
-        for dataset_name, dataset_results in results['datasets'].items():
-            print(f"\n{'-'*40}")
-            print(f"Dataset: {dataset_name}")
-            
-            if 'error' in dataset_results:
-                print(f"Status: FAILED - {dataset_results['error']}")
+                print(f"Error testing dataset {dataset_config.name}: {e}")
                 continue
+                
+        # Generate overall assessment
+        if comprehensive_results["datasets_tested"]:
+            comprehensive_results["overall_assessment"] = self._generate_overall_assessment(
+                comprehensive_results["detailed_results"]
+            )
             
-            dataset_info = dataset_results['dataset_info']
-            print(f"Description: {dataset_info.description}")
-            print(f"Expected Range: {dataset_info.expected_accuracy_range}")
+            # Export comprehensive summary
+            summary_file = self.reporter.export_summary_report()
+            print(f"Comprehensive summary exported to: {summary_file}")
             
-            benchmark_results = dataset_results['benchmark_results']
-            metrics = benchmark_results['metrics']
-            
-            print(f"Results:")
-            for metric_name, metric_values in metrics.items():
-                if isinstance(metric_values, dict):
-                    for key, value in metric_values.items():
-                        print(f"  {metric_name} - {key}: {value:.4f}")
-                else:
-                    print(f"  {metric_name}: {metric_values:.4f}")
+        return comprehensive_results
         
-        # Validation report
-        if 'validation' in results:
-            validation = results['validation']
-            print(f"\n{'='*40}")
-            print(f"VALIDATION REPORT")
-            print(f"{'='*40}")
-            print(f"Overall Assessment: {validation['overall_assessment']}")
+    def _generate_overall_assessment(self, detailed_results: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate overall assessment across all datasets."""
+        if not detailed_results:
+            return {"status": "NO_RESULTS"}
             
-            for dataset_result in validation['datasets_tested']:
-                status = "✓ PASS" if dataset_result['assessment'] == "PASS" else "✗ FAIL"
-                print(f"{dataset_result['dataset']}: {status}")
-                print(f"  Accuracy: {dataset_result['accuracy']:.4f}")
-                print(f"  Expected: {dataset_result['expected_range'][0]:.4f} - {dataset_result['expected_range'][1]:.4f}")
+        # Calculate aggregate metrics
+        total_datasets = len(detailed_results)
+        excellent_count = 0
+        good_count = 0
+        acceptable_count = 0
+        needs_improvement_count = 0
         
-        print("="*60)
+        for dataset_name, result in detailed_results.items():
+            status = result["summary"]["overall_status"]
+            if status == "EXCELLENT":
+                excellent_count += 1
+            elif status == "GOOD":
+                good_count += 1
+            elif status == "ACCEPTABLE":
+                acceptable_count += 1
+            else:
+                needs_improvement_count += 1
+                
+        # Determine overall grade
+        if excellent_count == total_datasets:
+            overall_grade = "A+ (All Excellent)"
+        elif excellent_count + good_count == total_datasets:
+            overall_grade = "A (All Good or Better)"
+        elif excellent_count + good_count + acceptable_count == total_datasets:
+            overall_grade = "B (All Acceptable or Better)"
+        else:
+            overall_grade = "C (Some Need Improvement)"
+            
+        return {
+            "total_datasets": total_datasets,
+            "excellent": excellent_count,
+            "good": good_count,
+            "acceptable": acceptable_count,
+            "needs_improvement": needs_improvement_count,
+            "overall_grade": overall_grade,
+            "success_rate": (excellent_count + good_count + acceptable_count) / total_datasets
+        }
+        
+    def get_available_datasets(self, task_type: Optional[TaskType] = None) -> Dict[str, Any]:
+        """Get information about available datasets."""
+        if task_type:
+            datasets = self.dataset_registry.get_datasets_for_task(task_type)
+            return {
+                "task_type": task_type.value,
+                "datasets": [dataset.__dict__ for dataset in datasets]
+            }
+        else:
+            return self.dataset_registry.list_available_datasets()
+            
+    def export_results(self, filename: Optional[str] = None) -> Optional[str]:
+        """Export the last benchmark results to JSON."""
+        if not self.last_results:
+            print("No results to export. Run benchmark first.")
+            return None
+            
+        if not filename:
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            filename = f"benchmark_results_{timestamp}.json"
+            
+        return self.reporter.export_to_json(self.last_results, filename)
