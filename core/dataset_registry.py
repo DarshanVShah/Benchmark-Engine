@@ -1,57 +1,59 @@
 """
-Dataset Registry for organizing datasets by task type.
-Provides standardized test suites for different ML tasks.
-Supports both local and remote datasets with automatic download.
+Dataset Registry
+
+This registry provides access to standard benchmark datasets for testing models.
+Users cannot add their own datasets - they must use the provided standard datasets.
 """
 
 import os
 import requests
 import tarfile
 import zipfile
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Any
 from enum import Enum
 
 
 class TaskType(Enum):
-    """Supported ML task types."""
-    EMOTION_CLASSIFICATION = "emotion-classification"
-    SENTIMENT_ANALYSIS = "sentiment-analysis"
-    TEXT_CLASSIFICATION = "text-classification"
-    NAMED_ENTITY_RECOGNITION = "ner"
-    QUESTION_ANSWERING = "qa"
-    TRANSLATION = "translation"
-    SUMMARIZATION = "summarization"
-    IMAGE_CLASSIFICATION = "image-classification"
-    OBJECT_DETECTION = "object-detection"
+    """Standard task types supported by the framework."""
+    EMOTION_CLASSIFICATION = "emotion_classification"
+    SENTIMENT_ANALYSIS = "sentiment_analysis"
+    TEXT_CLASSIFICATION = "text_classification"
+    IMAGE_CLASSIFICATION = "image_classification"
+    OBJECT_DETECTION = "object_detection"
 
 
 @dataclass
 class DatasetConfig:
-    """Configuration for a dataset in the registry."""
+    """Configuration for a standard benchmark dataset."""
     name: str
-    path: str  # Can be local path or remote URL
+    path: str
     task_type: TaskType
     config: Dict[str, Any]
     description: str
-    expected_accuracy_range: Optional[tuple] = None  # (min, max) for validation
+    expected_accuracy_range: Optional[tuple] = None
     is_remote: bool = False
     download_url: Optional[str] = None
     local_cache_dir: str = "benchmark_datasets/localTestSets"
     is_compressed: bool = False
-    extract_path: Optional[str] = None  # Path to extract compressed files
+    extract_path: Optional[str] = None
 
 
 class DatasetRegistry:
-    """Registry for organizing datasets by task type."""
+    """
+    Registry of standard benchmark datasets.
+    
+    This registry provides access to curated datasets for testing models.
+    Users cannot add their own datasets - they must use the provided standard datasets.
+    """
     
     def __init__(self):
+        """Initialize the registry with standard datasets."""
         self._datasets: Dict[TaskType, List[DatasetConfig]] = {}
         self._initialize_registry()
     
     def _initialize_registry(self):
-        """Initialize the registry with standard datasets for each task."""
-        
+        """Initialize with standard benchmark datasets."""
         # Emotion Classification Datasets
         self._datasets[TaskType.EMOTION_CLASSIFICATION] = [
             DatasetConfig(
@@ -61,8 +63,8 @@ class DatasetRegistry:
                 config={
                     "file_format": "tsv",
                     "text_column": "Tweet",
-                    "label_columns": ["anger", "anticipation", "disgust", "fear", "joy", 
-                                     "love", "optimism", "pessimism", "sadness", "surprise", "trust"],
+                    "label_columns": ["anger", "anticipation", "disgust", "fear", "joy", "love", 
+                                     "optimism", "pessimism", "sadness", "surprise", "trust"],
                     "task_type": "multi-label",
                     "max_length": 512
                 },
@@ -85,96 +87,50 @@ class DatasetRegistry:
                 expected_accuracy_range=(0.50, 0.75),
                 is_remote=True,
                 download_url="https://raw.githubusercontent.com/google-research/google-research/master/goemotions/data/test.tsv"
-            ),
-            # Note: Users can add their own datasets by:
-            # 1. Placing dataset files in benchmark_datasets/localTestSets/
-            # 2. Using the add_dataset() method
-            # 3. Or modifying this registry directly
+            )
         ]
         
         # Sentiment Analysis Datasets
         self._datasets[TaskType.SENTIMENT_ANALYSIS] = [
-            # Note: Users can add sentiment datasets here
+            DatasetConfig(
+                name="IMDB-Sentiment",
+                path="benchmark_datasets/localTestSets/imdb_sentiment.csv",
+                task_type=TaskType.SENTIMENT_ANALYSIS,
+                config={
+                    "file_format": "csv",
+                    "text_column": "text",
+                    "label_columns": ["sentiment"],
+                    "task_type": "single-label",
+                    "max_length": 512
+                },
+                description="IMDB movie review sentiment analysis dataset",
+                expected_accuracy_range=(0.80, 0.95),
+                is_remote=False
+            )
         ]
         
         # Text Classification Datasets
         self._datasets[TaskType.TEXT_CLASSIFICATION] = [
-            # Note: Users can add text classification datasets here
+            DatasetConfig(
+                name="AG-News",
+                path="benchmark_datasets/localTestSets/ag_news.csv",
+                task_type=TaskType.TEXT_CLASSIFICATION,
+                config={
+                    "file_format": "csv",
+                    "text_column": "text",
+                    "label_columns": ["category"],
+                    "task_type": "single-label",
+                    "max_length": 256
+                },
+                description="AG News topic classification dataset",
+                expected_accuracy_range=(0.85, 0.95),
+                is_remote=False
+            )
         ]
     
-    def download_dataset(self, dataset_config: DatasetConfig) -> bool:
-        """Download a remote dataset to local cache."""
-        if not dataset_config.is_remote or not dataset_config.download_url:
-            return True  # Already local
-        
-        try:
-            print(f"Downloading dataset {dataset_config.name} from {dataset_config.download_url}")
-            
-            # Create cache directory if it doesn't exist
-            os.makedirs(dataset_config.local_cache_dir, exist_ok=True)
-            
-            # Download the file
-            response = requests.get(dataset_config.download_url, stream=True)
-            response.raise_for_status()
-            
-            # Determine file extension and download path
-            if dataset_config.is_compressed:
-                download_path = dataset_config.path + ".tar.gz"
-            else:
-                download_path = dataset_config.path
-            
-            # Save to local path
-            with open(download_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            
-            # Handle compressed files
-            if dataset_config.is_compressed:
-                print(f"Extracting compressed dataset {dataset_config.name}")
-                if download_path.endswith('.tar.gz'):
-                    with tarfile.open(download_path, 'r:gz') as tar:
-                        tar.extractall(path=dataset_config.local_cache_dir)
-                elif download_path.endswith('.zip'):
-                    with zipfile.ZipFile(download_path, 'r') as zip_ref:
-                        zip_ref.extractall(path=dataset_config.local_cache_dir)
-                
-                # Clean up downloaded file
-                os.remove(download_path)
-                
-                # Update path if extraction created a different structure
-                if dataset_config.extract_path:
-                    extracted_path = os.path.join(dataset_config.local_cache_dir, dataset_config.extract_path)
-                    if os.path.exists(extracted_path):
-                        # Copy or move files to expected location
-                        import shutil
-                        if os.path.isdir(extracted_path):
-                            # For directories, we might need to find the actual data file
-                            for root, dirs, files in os.walk(extracted_path):
-                                for file in files:
-                                    if file.endswith('.txt') or file.endswith('.tsv') or file.endswith('.csv'):
-                                        shutil.copy2(os.path.join(root, file), dataset_config.path)
-                                        break
-                                break
-                        else:
-                            shutil.copy2(extracted_path, dataset_config.path)
-            
-            print(f"✓ Dataset {dataset_config.name} downloaded successfully")
-            return True
-            
-        except Exception as e:
-            print(f"✗ Failed to download dataset {dataset_config.name}: {e}")
-            return False
-    
-    def ensure_dataset_available(self, dataset_config: DatasetConfig) -> bool:
-        """Ensure dataset is available locally, downloading if necessary."""
-        if os.path.exists(dataset_config.path):
-            return True
-        
-        if dataset_config.is_remote:
-            return self.download_dataset(dataset_config)
-        else:
-            print(f"Local dataset not found: {dataset_config.path}")
-            return False
+    def get_task_types(self) -> List[TaskType]:
+        """Get all available task types."""
+        return list(self._datasets.keys())
     
     def get_datasets_for_task(self, task_type: TaskType) -> List[DatasetConfig]:
         """Get all datasets for a specific task type."""
@@ -188,39 +144,64 @@ class DatasetRegistry:
                     return dataset
         return None
     
-    def get_task_types(self) -> List[TaskType]:
-        """Get all supported task types."""
-        return list(self._datasets.keys())
+    def ensure_dataset_available(self, dataset_config: DatasetConfig) -> bool:
+        """
+        Ensure a dataset is available locally.
+        
+        For remote datasets, this will download them if needed.
+        """
+        if not dataset_config.is_remote:
+            return os.path.exists(dataset_config.path)
+        
+        # Handle remote dataset download
+        if dataset_config.download_url:
+            return self._download_dataset(dataset_config)
+        
+        return False
     
-    def add_dataset(self, dataset_config: DatasetConfig):
-        """Add a new dataset to the registry."""
-        if dataset_config.task_type not in self._datasets:
-            self._datasets[dataset_config.task_type] = []
-        self._datasets[dataset_config.task_type].append(dataset_config)
+    def _download_dataset(self, dataset_config: DatasetConfig) -> bool:
+        """Download a remote dataset."""
+        try:
+            print(f"Downloading dataset {dataset_config.name} from {dataset_config.download_url}")
+            
+            # Create cache directory
+            os.makedirs(dataset_config.local_cache_dir, exist_ok=True)
+            
+            # Download the file
+            response = requests.get(dataset_config.download_url, stream=True)
+            response.raise_for_status()
+            
+            # Save to local path
+            with open(dataset_config.path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            
+            print(f"✓ Dataset {dataset_config.name} downloaded successfully")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to download dataset {dataset_config.name}: {e}")
+            return False
     
-    def validate_results(self, task_type: TaskType, results: Dict[str, float]) -> Dict[str, Any]:
-        """Validate benchmark results against expected ranges."""
-        validation_report = {
-            "task_type": task_type.value,
-            "datasets_tested": [],
-            "overall_assessment": "PASS"
+    def list_available_datasets(self) -> Dict[TaskType, List[str]]:
+        """List all available datasets by task type."""
+        return {
+            task_type: [dataset.name for dataset in datasets]
+            for task_type, datasets in self._datasets.items()
         }
+    
+    def get_dataset_info(self, dataset_name: str) -> Optional[Dict[str, Any]]:
+        """Get detailed information about a dataset."""
+        dataset = self.get_dataset_by_name(dataset_name)
+        if not dataset:
+            return None
         
-        datasets = self.get_datasets_for_task(task_type)
-        for dataset in datasets:
-            if dataset.name in results:
-                accuracy = results[dataset.name]
-                expected_min, expected_max = dataset.expected_accuracy_range or (0.0, 1.0)
-                
-                assessment = "PASS" if expected_min <= accuracy <= expected_max else "FAIL"
-                validation_report["datasets_tested"].append({
-                    "dataset": dataset.name,
-                    "accuracy": accuracy,
-                    "expected_range": (expected_min, expected_max),
-                    "assessment": assessment
-                })
-                
-                if assessment == "FAIL":
-                    validation_report["overall_assessment"] = "FAIL"
-        
-        return validation_report
+        return {
+            "name": dataset.name,
+            "description": dataset.description,
+            "task_type": dataset.task_type.value,
+            "path": dataset.path,
+            "config": dataset.config,
+            "expected_accuracy_range": dataset.expected_accuracy_range,
+            "is_remote": dataset.is_remote
+        }
