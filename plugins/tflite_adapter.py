@@ -175,28 +175,43 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             else:
                 text = str(raw_input)
 
-            # Simple character-level tokenization
-            # In a real implementation, you'd use a proper tokenizer
-            chars = list(text.lower())
-            vocab = list(set(chars))
-            char_to_idx = {char: idx for idx, char in enumerate(vocab)}
-
-            # Tokenize
-            tokens = [char_to_idx.get(char, 0) for char in chars]
-
-            # Pad/truncate to expected length
-            expected_length = self.input_shape[1] if len(self.input_shape) > 1 else 1
-            if len(tokens) > expected_length:
-                tokens = tokens[:expected_length]
-            else:
-                tokens.extend([0] * (expected_length - len(tokens)))
-
-            # Convert to numpy array
-            return np.array([tokens], dtype=np.int32)
+            # Create input tensors that match the model's expected format
+            # Based on the model input details: [attention_mask, input_ids, token_type_ids]
+            
+            # Create dummy tensors with proper shapes
+            # This is a simplified approach - in production you'd use proper tokenization
+            batch_size = 1
+            max_length = self.input_shape[1] if len(self.input_shape) > 1 else 1
+            
+            # attention_mask: [1, max_length] - all ones for now
+            attention_mask = np.ones((batch_size, max_length), dtype=np.int32)
+            
+            # input_ids: [1, max_length] - simple character encoding
+            # Truncate text to max_length
+            if len(text) > max_length:
+                text = text[:max_length]
+            
+            # Create simple character-based encoding
+            input_ids = np.zeros((batch_size, max_length), dtype=np.int32)
+            for i, char in enumerate(text):
+                input_ids[0, i] = ord(char) % 1000  # Simple hash to keep values reasonable
+            
+            # token_type_ids: [1, max_length] - all zeros for single sequence
+            token_type_ids = np.zeros((batch_size, max_length), dtype=np.int32)
+            
+            # Return as a list of tensors matching the model's input format
+            return [attention_mask, input_ids, token_type_ids]
 
         except Exception as e:
             print(f"Error in text preprocessing: {e}")
-            return np.zeros(self.input_shape, dtype=np.int32)
+            # Return dummy tensors with correct shapes
+            batch_size = 1
+            max_length = self.input_shape[1] if len(self.input_shape) > 1 else 1
+            return [
+                np.ones((batch_size, max_length), dtype=np.int32),  # attention_mask
+                np.zeros((batch_size, max_length), dtype=np.int32),  # input_ids
+                np.zeros((batch_size, max_length), dtype=np.int32)   # token_type_ids
+            ]
 
     def _preprocess_image(self, raw_input: Union[str, Dict[str, Any]]) -> np.ndarray:
         """Preprocess image input for TFLite model."""
@@ -276,12 +291,12 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             print(f"Error in tensor preprocessing: {e}")
             return np.zeros(self.input_shape, dtype=np.float32)
 
-    def run(self, preprocessed_input: np.ndarray) -> np.ndarray:
+    def run(self, preprocessed_input: Union[np.ndarray, List[np.ndarray]]) -> np.ndarray:
         """
         Run inference on preprocessed input.
 
         Args:
-            preprocessed_input: Preprocessed input from preprocess()
+            preprocessed_input: Preprocessed input from preprocess() (can be single tensor or list of tensors)
 
         Returns:
             Raw model output
@@ -291,16 +306,25 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                 print("Error: Model not loaded")
                 return None
 
-            # Set input tensor
-            self.interpreter.set_tensor(self.input_details[0]["index"], preprocessed_input)
+            # Handle multiple input tensors
+            if isinstance(preprocessed_input, list):
+                # Set multiple input tensors
+                for i, tensor in enumerate(preprocessed_input):
+                    if i < len(self.input_details):
+                        self.interpreter.set_tensor(self.input_details[i]["index"], tensor)
+                    else:
+                        print(f"Warning: More input tensors provided than model expects")
+                        break
+            else:
+                # Single input tensor
+                self.interpreter.set_tensor(self.input_details[0]["index"], preprocessed_input)
 
             # Run inference
             self.interpreter.invoke()
 
-            # Get output tensor
-            output_data = self.interpreter.get_tensor(self.output_details[0]["index"])
-
-            return output_data
+            # Get output
+            output_tensor = self.interpreter.get_tensor(self.output_details[0]["index"])
+            return output_tensor
 
         except Exception as e:
             print(f"Error in model inference: {e}")

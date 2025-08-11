@@ -109,10 +109,56 @@ class TemplateDataset(BaseDataset):
             self.data = list(reader)
 
     def _load_tsv(self, file_path: str):
-        """Load TSV file."""
+        """Load TSV file with flexible column handling."""
+        self.data = []
+        
         with open(file_path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f, delimiter="\t")
-            self.data = list(reader)
+            for line_num, line in enumerate(f):
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # Split by tab
+                parts = line.split('\t')
+                if len(parts) < 2:
+                    continue
+                
+                # Extract text and labels
+                text = parts[0].strip()
+                if not text:
+                    continue
+                
+                # Create sample with proper structure
+                sample = {self.text_column: text}
+                
+                # Handle different label formats
+                if len(parts) >= 2:
+                    label_value = parts[1].strip()
+                    
+                    # Apply label mapping if specified
+                    if hasattr(self, 'label_mapping') and self.label_mapping:
+                        label_value = self.label_mapping.get(label_value, label_value)
+                    
+                    # Add label to sample
+                    for label_col in self.label_columns:
+                        sample[label_col] = label_value
+                
+                # Add additional columns if available
+                for i, col_name in enumerate(self.label_columns[1:], start=2):
+                    if i < len(parts):
+                        sample[col_name] = parts[i].strip()
+                
+                self.data.append(sample)
+        
+        print(f"  Template dataset loaded: {file_path}")
+        print(f"  Format: tsv")
+        print(f"  Samples: {len(self.data)}")
+        print(f"  Task: {self.task_type}")
+        print(f"  Text column: {self.text_column}")
+        print(f"  Label columns: {self.label_columns}")
+        
+        if self.data:
+            print(f"  Sample data: {self.data[0]}")
 
     def _load_json(self, file_path: str):
         """Load JSON file."""

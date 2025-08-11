@@ -16,7 +16,6 @@ from core.dataset_registry import TaskType
 from plugins.huggingface_adapter import HuggingFaceAdapter
 from plugins.tflite_adapter import TensorFlowLiteAdapter
 from benchmark_datasets.template_dataset import TemplateDataset
-from benchmark_datasets.goemotions_dataset import GoEmotionsDataset
 from metrics.template_metric import TemplateAccuracyMetric
 from metrics.template_metric import TemplateMultiLabelMetric
 
@@ -35,7 +34,6 @@ def run_huggingface_comprehensive_benchmark():
     # Register components
     engine.register_adapter("huggingface", HuggingFaceAdapter)
     engine.register_dataset("template", TemplateDataset)
-    engine.register_dataset("goemotions", GoEmotionsDataset)
     
     # Model configuration
     model_config = {
@@ -100,7 +98,6 @@ def run_tflite_comprehensive_benchmark():
     # Register components
     engine.register_adapter("tflite", TensorFlowLiteAdapter)
     engine.register_dataset("template", TemplateDataset)
-    engine.register_dataset("goemotions", GoEmotionsDataset)
     
     # Model configuration
     model_config = {
