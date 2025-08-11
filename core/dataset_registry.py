@@ -70,100 +70,20 @@ class DatasetRegistry:
                 expected_accuracy_range=(0.60, 0.85),
                 is_remote=False
             ),
-            DatasetConfig(
-                name="ISEAR",
-                path="benchmark_datasets/localTestSets/isear_dataset.txt",
-                task_type=TaskType.EMOTION_CLASSIFICATION,
-                config={
-                    "file_format": "tsv",
-                    "text_column": "text",
-                    "label_columns": ["joy", "fear", "anger", "sadness", "disgust", "shame", "guilt"],
-                    "task_type": "single-label",
-                    "max_length": 512
-                },
-                description="Single-label emotion classification with 7 emotions",
-                expected_accuracy_range=(0.70, 0.90),
-                is_remote=True,
-                download_url="https://raw.githubusercontent.com/ISEAR/ISEAR/master/data/isear_dataset.txt"
-            ),
-            DatasetConfig(
-                name="GoEmotions",
-                path="benchmark_datasets/localTestSets/goemotions_test.txt",
-                task_type=TaskType.EMOTION_CLASSIFICATION,
-                config={
-                    "file_format": "tsv",
-                    "text_column": "text",
-                    "label_columns": ["admiration", "amusement", "anger", "annoyance", "approval", 
-                                     "caring", "confusion", "curiosity", "desire", "disappointment", 
-                                     "disapproval", "disgust", "embarrassment", "excitement", "fear", 
-                                     "gratitude", "grief", "joy", "love", "nervousness", "optimism", 
-                                     "pride", "realization", "relief", "remorse", "sadness", "surprise", "neutral"],
-                    "task_type": "multi-label",
-                    "max_length": 512
-                },
-                description="Large-scale multi-label emotion dataset with 27 emotions",
-                expected_accuracy_range=(0.50, 0.75),
-                is_remote=True,
-                download_url="https://raw.githubusercontent.com/google-research/google-research/master/goemotions/data/test.tsv"
-            )
+            # Note: Users can add their own datasets by:
+            # 1. Placing dataset files in benchmark_datasets/localTestSets/
+            # 2. Using the add_dataset() method
+            # 3. Or modifying this registry directly
         ]
         
         # Sentiment Analysis Datasets
         self._datasets[TaskType.SENTIMENT_ANALYSIS] = [
-            DatasetConfig(
-                name="SST-2",
-                path="benchmark_datasets/localTestSets/sst2_test.txt",
-                task_type=TaskType.SENTIMENT_ANALYSIS,
-                config={
-                    "file_format": "tsv",
-                    "text_column": "sentence",
-                    "label_columns": ["negative", "positive"],
-                    "task_type": "single-label",
-                    "max_length": 512
-                },
-                description="Stanford Sentiment Treebank - binary sentiment classification",
-                expected_accuracy_range=(0.85, 0.95),
-                is_remote=True,
-                download_url="https://raw.githubusercontent.com/princeton-nlp/SimCSE/main/data/STS-B/sts-dev.csv"
-            ),
-            DatasetConfig(
-                name="IMDB",
-                path="benchmark_datasets/localTestSets/imdb_test.txt",
-                task_type=TaskType.SENTIMENT_ANALYSIS,
-                config={
-                    "file_format": "tsv",
-                    "text_column": "text",
-                    "label_columns": ["negative", "positive"],
-                    "task_type": "single-label",
-                    "max_length": 512
-                },
-                description="IMDB movie reviews - binary sentiment classification",
-                expected_accuracy_range=(0.80, 0.90),
-                is_remote=True,
-                download_url="https://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz",
-                is_compressed=True,
-                extract_path="aclImdb/test"
-            )
+            # Note: Users can add sentiment datasets here
         ]
         
         # Text Classification Datasets
         self._datasets[TaskType.TEXT_CLASSIFICATION] = [
-            DatasetConfig(
-                name="AG-News",
-                path="benchmark_datasets/localTestSets/ag_news_test.txt",
-                task_type=TaskType.TEXT_CLASSIFICATION,
-                config={
-                    "file_format": "tsv",
-                    "text_column": "text",
-                    "label_columns": ["world", "sports", "business", "technology"],
-                    "task_type": "single-label",
-                    "max_length": 512
-                },
-                description="AG News dataset - 4-class news classification",
-                expected_accuracy_range=(0.85, 0.95),
-                is_remote=True,
-                download_url="https://raw.githubusercontent.com/mhjabreel/CharCnn_Keras/master/data/ag_news_csv/test.csv"
-            )
+            # Note: Users can add text classification datasets here
         ]
     
     def download_dataset(self, dataset_config: DatasetConfig) -> bool:
@@ -200,7 +120,7 @@ class DatasetRegistry:
                         tar.extractall(path=dataset_config.local_cache_dir)
                 elif download_path.endswith('.zip'):
                     with zipfile.ZipFile(download_path, 'r') as zip_ref:
-                        zip_ref.extractall(dataset_config.local_cache_dir)
+                        zip_ref.extractall(path=dataset_config.local_cache_dir)
                 
                 # Clean up downloaded file
                 os.remove(download_path)

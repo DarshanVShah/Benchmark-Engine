@@ -40,6 +40,7 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
         self.task_type = "auto-detected"
         self.max_length = 512
         self.tokenizer = None
+        self.is_multi_label = False  # Track if this is a multi-label task
 
     @property
     def input_type(self) -> DataType:
@@ -49,7 +50,11 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
     @property
     def output_type(self) -> OutputType:
         """Return the output type this model produces."""
-        return self._output_type
+        # Dynamic output type based on task type
+        if self.is_multi_label:
+            return OutputType.PROBABILITIES
+        else:
+            return self._output_type
 
     def load(self, model_path: str) -> bool:
         """Load TensorFlow Lite model from file."""
@@ -100,6 +105,11 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             if "task_type" in config:
                 self.task_type = config["task_type"]
                 print(f"  Task type set to: {self.task_type}")
+
+            # Set multi-label flag
+            if "is_multi_label" in config:
+                self.is_multi_label = config["is_multi_label"]
+                print(f"  Multi-label set to: {self.is_multi_label}")
 
             # Set input/output types
             if "input_type" in config:
