@@ -176,11 +176,11 @@ class DatasetRegistry:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
             
-            print(f"✓ Dataset {dataset_config.name} downloaded successfully")
+            print(f"Dataset {dataset_config.name} downloaded successfully")
             return True
             
         except Exception as e:
-            print(f"❌ Failed to download dataset {dataset_config.name}: {e}")
+            print(f"Failed to download dataset {dataset_config.name}: {e}")
             return False
     
     def list_available_datasets(self) -> Dict[TaskType, List[str]]:
