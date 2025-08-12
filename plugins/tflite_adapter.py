@@ -175,42 +175,51 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             else:
                 text = str(raw_input)
 
+            # Get the actual input shapes from the model
+            batch_size = 1
+            
             # Create input tensors that match the model's expected format
             # Based on the model input details: [attention_mask, input_ids, token_type_ids]
             
-            # Create dummy tensors with proper shapes
-            # This is a simplified approach - in production you'd use proper tokenization
-            batch_size = 1
-            max_length = self.input_shape[1] if len(self.input_shape) > 1 else 1
+            # attention_mask: Use actual shape from model
+            attention_mask_shape = self.input_details[0]["shape"]
+            attention_mask = np.ones(attention_mask_shape, dtype=np.int32)
             
-            # attention_mask: [1, max_length] - all ones for now
-            attention_mask = np.ones((batch_size, max_length), dtype=np.int32)
+            # input_ids: Use actual shape from model
+            input_ids_shape = self.input_details[1]["shape"]
+            input_ids = np.zeros(input_ids_shape, dtype=np.int32)
             
-            # input_ids: [1, max_length] - simple character encoding
-            # Truncate text to max_length
-            if len(text) > max_length:
-                text = text[:max_length]
+            # For very short sequences (like [1, 1]), we need to handle differently
+            if len(input_ids_shape) == 2 and input_ids_shape[1] == 1:
+                # Model expects single token - use first character as token ID
+                if text:
+                    input_ids[0, 0] = ord(text[0]) % 1000  # Simple hash
+                else:
+                    input_ids[0, 0] = 0
+            else:
+                # Model expects longer sequences - truncate/pad to match
+                max_length = input_ids_shape[1] if len(input_ids_shape) > 1 else 1
+                if len(text) > max_length:
+                    text = text[:max_length]
+                
+                for i, char in enumerate(text):
+                    if i < max_length:
+                        input_ids[0, i] = ord(char) % 1000
             
-            # Create simple character-based encoding
-            input_ids = np.zeros((batch_size, max_length), dtype=np.int32)
-            for i, char in enumerate(text):
-                input_ids[0, i] = ord(char) % 1000  # Simple hash to keep values reasonable
-            
-            # token_type_ids: [1, max_length] - all zeros for single sequence
-            token_type_ids = np.zeros((batch_size, max_length), dtype=np.int32)
+            # token_type_ids: Use actual shape from model
+            token_type_ids_shape = self.input_details[2]["shape"]
+            token_type_ids = np.zeros(token_type_ids_shape, dtype=np.int32)
             
             # Return as a list of tensors matching the model's input format
             return [attention_mask, input_ids, token_type_ids]
 
         except Exception as e:
             print(f"Error in text preprocessing: {e}")
-            # Return dummy tensors with correct shapes
-            batch_size = 1
-            max_length = self.input_shape[1] if len(self.input_shape) > 1 else 1
+            # Return dummy tensors with correct shapes from model
             return [
-                np.ones((batch_size, max_length), dtype=np.int32),  # attention_mask
-                np.zeros((batch_size, max_length), dtype=np.int32),  # input_ids
-                np.zeros((batch_size, max_length), dtype=np.int32)   # token_type_ids
+                np.ones(self.input_details[0]["shape"], dtype=np.int32),  # attention_mask
+                np.zeros(self.input_details[1]["shape"], dtype=np.int32),  # input_ids
+                np.zeros(self.input_details[2]["shape"], dtype=np.int32)   # token_type_ids
             ]
 
     def _preprocess_image(self, raw_input: Union[str, Dict[str, Any]]) -> np.ndarray:
@@ -312,18 +321,23 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                 for i, tensor in enumerate(preprocessed_input):
                     if i < len(self.input_details):
                         self.interpreter.set_tensor(self.input_details[i]["index"], tensor)
+                        print(f"  Debug: Set input {i} with shape {tensor.shape}: {tensor.flatten()[:5]}...")
                     else:
                         print(f"Warning: More input tensors provided than model expects")
                         break
             else:
                 # Single input tensor
                 self.interpreter.set_tensor(self.input_details[0]["index"], preprocessed_input)
+                print(f"  Debug: Set single input with shape {preprocessed_input.shape}")
 
             # Run inference
             self.interpreter.invoke()
 
             # Get output
             output_tensor = self.interpreter.get_tensor(self.output_details[0]["index"])
+            print(f"  Debug: Model output shape: {output_tensor.shape}")
+            print(f"  Debug: Model output values: {output_tensor.flatten()}")
+            
             return output_tensor
 
         except Exception as e:
