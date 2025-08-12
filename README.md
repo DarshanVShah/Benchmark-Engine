@@ -1,7 +1,7 @@
 
 # BenchmarkEngine
 
-A standardized benchmarking framework for machine learning models. **We provide the test infrastructure and standard datasets, you provide your models wrapped in adapters.**
+A standardized benchmarking framework for machine learning models. 
 
 ## Architecture
 
@@ -17,6 +17,8 @@ A standardized benchmarking framework for machine learning models. **We provide 
 - **Text Classification**: General text categorization
 - **Image Classification**: Computer vision tasks
 - **Object Detection**: Object localization and classification
+
+Currently on emotion classifiers.
 
 ## Using Your Own Models
 
