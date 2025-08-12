@@ -1,8 +1,9 @@
 """
-Simple TFLite Emotion Classifier Example
+Universal TFLite Emotion Classifier Test
 
-This example shows how a user would use the BenchmarkEngine to test their TFLite emotion classifier.
-Simple, straightforward usage - just load model, load dataset, and run benchmark.
+This example shows how a user would use the BenchmarkEngine for universal testing.
+The engine selects random emotion datasets unknown to you and creates a standardized
+evaluation environment. Your adapter must work with the engine's standard format.
 """
 
 import os
@@ -14,11 +15,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.engine import BenchmarkEngine
 from plugins.tflite_adapter import TensorFlowLiteAdapter
 from benchmark_datasets.template_dataset import TemplateDataset
-from metrics.template_metric import TemplateAccuracyMetric
+from metrics.template_metric import TemplateMultiLabelMetric
 
 
 def main():
-    """Simple example of using TFLite emotion classifier."""
+    """Universal test of TFLite emotion classifier."""
     
     # Create the benchmark engine
     engine = BenchmarkEngine()
@@ -32,52 +33,36 @@ def main():
     model_config = {
         "device": "cpu",
         "precision": "fp32",
-        "max_length": 128,
+        "max_length": 512,  # Use larger max length for universal testing
         "input_type": "text",
-        "output_type": "probabilities",  # Changed to probabilities for multi-label
-        "task_type": "multi-label",      # Changed to multi-label
-        "is_multi_label": True           # Enable multi-label mode
+        "output_type": "probabilities",
+        "task_type": "multi-label",
+        "is_multi_label": True
     }
     
     if not engine.load_model("tflite", model_path, model_config):
         print("Failed to load TFLite model")
         return False
     
-    # Load dataset
-    dataset_path = "benchmark_datasets/localTestSets/2018-E-c-En-test-gold.txt"
+    # Add universal evaluation metric
+    universal_metric = TemplateMultiLabelMetric(metric_type="accuracy", threshold=0.5)
+    engine.add_metric("universal_accuracy", universal_metric)
     
-    # Configure dataset for 2018 emotion classification (11 emotions, multi-label)
-    dataset_config = {
-        "file_format": "tsv",
-        "text_column": "Tweet",  # The actual tweet text column
-        "label_columns": ["anger", "anticipation", "disgust", "fear", "joy", "love", "optimism", "pessimism", "sadness", "surprise", "trust"],
-        "task_type": "multi-label",
-        "max_length": 128,
-        "delimiter": "\t",
-        "skip_header": True,  # 2018 dataset has header
-        "id_column": "ID"     # Specify ID column to ignore
-    }
+    # Run universal benchmark (engine selects random datasets unknown to you)
+    print("🎯 Starting Universal Emotion Benchmark")
+    print("The engine will select random emotion datasets and create a standardized format.")
+    print("Your adapter must work with the engine's standard - you won't know the datasets!")
+    print()
     
-    if not engine.load_dataset("template", dataset_path, dataset_config):
-        print("Failed to load dataset")
-        return False
-    
-    # Add evaluation metrics
-    from metrics.template_metric import TemplateMultiLabelMetric
-    multi_label_metric = TemplateMultiLabelMetric(metric_type="accuracy", threshold=0.5)
-    engine.add_metric("multi_label_accuracy", multi_label_metric)
-    
-    # Run the benchmark
-    results = engine.run_benchmark(num_samples=1000)  # Test on 1000 samples
+    results = engine.run_universal_benchmark(num_samples=500)  # Test on 500 samples per dataset
     
     if results:
-        # Export results
-        export_file = engine.export_results("my_emotion_classifier_results.json")
-        print(f"\nResults saved to: {export_file}")
-        
+        print(f"\n🎉 Universal benchmark completed successfully!")
+        print(f"Your adapter achieved {results['universal_accuracy']:.1%} average accuracy")
+        print(f"across {results['datasets_tested']} unknown emotion datasets.")
         return True
     else:
-        print("Benchmark failed")
+        print("Universal benchmark failed")
         return False
 
 
@@ -85,7 +70,7 @@ if __name__ == "__main__":
     success = main()
     
     if success:
-        print("\nAll done!")
+        print("\nAll done! Check the universal benchmark results for detailed analysis.")
     else:
         print("\nSomething went wrong. Check the error messages above.")
         sys.exit(1)
