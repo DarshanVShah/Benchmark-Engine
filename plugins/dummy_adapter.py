@@ -8,7 +8,7 @@ actual model files or ML frameworks.
 import time
 import random
 from typing import Dict, Any
-from core import BaseModelAdapter, ModelType
+from core import BaseModelAdapter, ModelType, DataType, OutputType
 
 
 class DummyModelAdapter(BaseModelAdapter):
@@ -25,6 +25,16 @@ class DummyModelAdapter(BaseModelAdapter):
         self.model_size = 0
         self.inference_delay = 0.01  # Simulate 10ms inference time
         self.config = {}
+
+    @property
+    def input_type(self) -> DataType:
+        """Dummy model accepts text input."""
+        return DataType.TEXT
+
+    @property
+    def output_type(self) -> OutputType:
+        """Dummy model outputs class IDs."""
+        return OutputType.CLASS_ID
 
     def load(self, model_path: str) -> bool:
         """
@@ -72,15 +82,15 @@ class DummyModelAdapter(BaseModelAdapter):
         if "device" in config and config["device"] == "gpu":
             self.inference_delay = 0.005  # Faster on GPU
 
-        print(f" Dummy model configured")
+        print(f"Dummy model configured")
         return True
 
-    def preprocess_input(self, sample: Any) -> Any:
+    def preprocess(self, raw_input: Any) -> Any:
         """
-        Convert dataset sample to model input format.
+        Convert raw input to model-specific format.
 
         Args:
-            sample: Raw sample from dataset
+            raw_input: Raw input from dataset
 
         Returns:
             Preprocessed input for model
@@ -91,72 +101,89 @@ class DummyModelAdapter(BaseModelAdapter):
         # - Tokenize text
         # - Convert to tensors
 
-        if isinstance(sample, dict):
+        if isinstance(raw_input, dict):
             # Handle structured samples
-            if "features" in sample:
+            if "features" in raw_input:
                 # Simulate feature preprocessing
-                return {"input": sample["features"]}
-            elif "image" in sample:
+                return {"input": raw_input["features"]}
+            elif "image" in raw_input:
                 # Simulate image preprocessing
-                return {"input": sample["image"]}
-            elif "text" in sample:
-                # Simulate text preprocessing
-                return {"input": sample["text"]}
+                return {"input": raw_input["image"]}
+            else:
+                # Generic preprocessing
+                return {"input": raw_input}
+        elif isinstance(raw_input, str):
+            # Simulate text preprocessing
+            return {"input": raw_input.lower().strip()}
+        else:
+            # Generic preprocessing
+            return {"input": raw_input}
 
-        # Default: return as-is
-        return sample
-
-    def run(self, inputs: Any) -> Any:
+    def run(self, preprocessed_input: Any) -> Any:
         """
-        Simulate model inference.
+        Run inference on preprocessed input.
 
         Args:
-            inputs: Preprocessed input data
+            preprocessed_input: Preprocessed input from preprocess()
 
         Returns:
             Raw model output
         """
         if not self.model_loaded:
-            raise RuntimeError("Model not loaded. Call load() first.")
+            print("Error: Model not loaded")
+            return None
 
         # Simulate inference time
         time.sleep(self.inference_delay)
 
-        # Generate dummy prediction
-        if isinstance(inputs, (list, tuple)) and len(inputs) > 0:
-            # If input is a sequence, return a sequence of predictions
-            return [
-                f"raw_prediction_{i}_{random.randint(1, 100)}"
-                for i in range(len(inputs))
-            ]
+        # Simulate model output
+        # In a real implementation, this would be actual model inference
+        if isinstance(preprocessed_input, dict) and "input" in preprocessed_input:
+            input_data = preprocessed_input["input"]
+            
+            # Simple rule-based classification for demonstration
+            if isinstance(input_data, str):
+                # Text classification simulation
+                positive_words = ["good", "great", "excellent", "amazing", "wonderful"]
+                negative_words = ["bad", "terrible", "awful", "horrible", "poor"]
+                
+                text = input_data.lower()
+                positive_score = sum(1 for word in positive_words if word in text)
+                negative_score = sum(1 for word in negative_words if word in text)
+                
+                if positive_score > negative_score:
+                    return [1]  # Positive class
+                elif negative_score > positive_score:
+                    return [0]  # Negative class
+                else:
+                    return [random.randint(0, 1)]  # Random for neutral
+            else:
+                # Generic classification
+                return [random.randint(0, 2)]  # Random class
         else:
-            # Single prediction
-            return f"raw_prediction_{random.randint(1, 100)}"
+            # Fallback
+            return [random.randint(0, 1)]
 
-    def postprocess_output(self, model_output: Any) -> Any:
+    def postprocess(self, model_output: Any) -> Any:
         """
-        Convert model output to standardized format.
+        Convert raw model output to standardized format.
 
         Args:
-            model_output: Raw model output
+            model_output: Raw output from model
 
         Returns:
             Standardized prediction
         """
-        # In a real implementation, this would:
-        # - Apply softmax for classification
-        # - Decode tokens for text generation
-        # - Convert to human-readable format
+        if model_output is None:
+            return None
 
-        if isinstance(model_output, (list, tuple)):
-            # Convert raw predictions to standardized format
-            return [
-                f"prediction_{i}_{random.randint(1, 100)}"
-                for i in range(len(model_output))
-            ]
+        # Ensure output is in the expected format (list of class IDs)
+        if isinstance(model_output, list):
+            return model_output
+        elif isinstance(model_output, (int, float)):
+            return [int(model_output)]
         else:
-            # Single prediction
-            return f"prediction_{random.randint(1, 100)}"
+            return [0]  # Default fallback
 
     def get_model_info(self) -> Dict[str, Any]:
         """
@@ -165,14 +192,16 @@ class DummyModelAdapter(BaseModelAdapter):
         Returns:
             Dictionary containing model information
         """
-        return {
+        info = {
             "name": self.model_name,
             "type": "dummy",
-            "size_mb": self.model_size,
+            "model_size_mb": self.model_size,
             "loaded": self.model_loaded,
-            "inference_delay_ms": self.inference_delay * 1000,
+            "inference_delay": self.inference_delay,
             "config": self.config,
         }
+
+        return info
 
     def get_model_type(self) -> ModelType:
         """

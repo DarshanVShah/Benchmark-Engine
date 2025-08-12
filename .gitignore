@@ -6,3 +6,5 @@ __pycache__/
 *.txt
 *.tflite
 *.venv
+*.tsv
+*.csv

@@ -63,7 +63,7 @@ class BaseModelAdapter(ABC):
         pass
 
     @abstractmethod
-    def preprocess_input(self, raw_input: Any) -> Any:
+    def preprocess(self, raw_input: Any) -> Any:
         """
         Convert raw input to model-specific format.
 
@@ -89,7 +89,7 @@ class BaseModelAdapter(ABC):
         pass
 
     @abstractmethod
-    def postprocess_output(self, model_output: Any) -> Any:
+    def postprocess(self, model_output: Any) -> Any:
         """
         Convert raw model output to standardized format.
 
@@ -111,9 +111,13 @@ class BaseModelAdapter(ABC):
         Returns:
             Standardized prediction
         """
-        preprocessed = self.preprocess_input(raw_input)
-        model_output = self.run(preprocessed)
-        return self.postprocess_output(model_output)
+        try:
+            preprocessed = self.preprocess(raw_input)
+            model_output = self.run(preprocessed)
+            return self.postprocess(model_output)
+        except Exception as e:
+            print(f"Error in model prediction: {e}")
+            return None
 
     @abstractmethod
     def get_model_info(self) -> Dict[str, Any]:

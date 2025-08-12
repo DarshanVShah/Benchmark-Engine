@@ -1,57 +1,75 @@
+
 # BenchmarkEngine
 
-A simple framework for benchmarking machine learning models with a plugin-based architecture.
+A standardized benchmarking framework for machine learning models. **We provide the test infrastructure and standard datasets, you provide your models wrapped in adapters.**
 
-## What is this?
+## Architecture
 
-BenchmarkEngine lets you easily test and compare different machine learning models using a consistent interface. It's designed to be extensible - you can add support for new model types, metrics, and datasets as plugins.
+- **BenchmarkEngine**: The "exam administrator" that provides standardized testing infrastructure
+- **Standard Datasets**: Curated benchmark datasets for different ML tasks
+- **User Models**: Your models wrapped in adapters that conform to our interface
+- **Adapters**: Must implement `BaseModelAdapter` interface for compatibility
 
-## Quick Start
+## Supported Task Types
+
+- **Emotion Classification**: Multi-label and single-label emotion detection
+- **Sentiment Analysis**: Text sentiment classification
+- **Text Classification**: General text categorization
+- **Image Classification**: Computer vision tasks
+- **Object Detection**: Object localization and classification
+
+## Using Your Own Models
+
+### 1. Create an Adapter
+Your adapter must inherit from `BaseModelAdapter` and implement:
 
 ```python
-from core import BenchmarkEngine
-from plugins import DummyModelAdapter, DummyAccuracyMetric, DummyDataset
+from core.interfaces import BaseModelAdapter, DataType, OutputType
 
-# Create the benchmark engine
+class MyModelAdapter(BaseModelAdapter):
+    @property
+    def input_type(self) -> DataType:
+        return DataType.TEXT  # or IMAGE, etc.
+    
+    @property
+    def output_type(self) -> OutputType:
+        return OutputType.CLASS_ID  # or PROBABILITIES, etc.
+    
+    def preprocess(self, raw_input: Any) -> Any:
+        # Convert input to model format
+        pass
+    
+    def run(self, preprocessed_input: Any) -> Any:
+        # Run model inference
+        pass
+    
+    def postprocess(self, model_output: Any) -> Any:
+        # Convert output to standard format
+        pass
+```
+
+### 2. Use the Framework
+```python
+from core.engine import BenchmarkEngine
+
+# Create engine
 engine = BenchmarkEngine()
 
-# Register your components
-engine.register_adapter("dummy", DummyModelAdapter)
-engine.register_metric("accuracy", DummyAccuracyMetric)
-engine.register_dataset("dummy", DummyDataset)
+# Register your adapter
+engine.register_adapter("mymodel", MyModelAdapter)
 
-# Load your model and dataset
-engine.load_model("dummy", "path/to/model")
-engine.load_dataset("dummy", "path/to/dataset")
+# Load your model
+engine.load_model("mymodel", "path/to/model", config)
 
-# Add metrics to measure
-engine.add_metric("accuracy")
-
-# Run the benchmark
-results = engine.run_benchmark(num_samples=20)
-
-# Export results
-engine.export_results("results.json", format="json")
+# Run benchmarks on our standard datasets
+results = engine.run_benchmark()
 ```
 
-## Running Examples
+## Key Features
 
-```bash
-# Basic benchmark
-python examples/basic_benchmark.py
+- **Standardized Testing**: Consistent evaluation across different models
+- **Real Datasets**: Curated benchmark datasets for reliable testing
+- **Model Agnostic**: Works with any model through adapters
+- **Type Safety**: Explicit input/output type contracts
+- **Performance Metrics**: Comprehensive evaluation including accuracy and timing
 
-```
-
-## Creating Custom Plugins
-
-The framework uses a plugin architecture, so you can easily add support for:
-- New model types (HuggingFace, TensorFlow Lite, ONNX, etc.)
-- New metrics (accuracy, latency, memory usage, etc.)
-- New datasets (ImageNet, GLUE, custom datasets, etc.)
-
-## Why this approach?
-
-- **Simple**: Easy to get started with dummy plugins
-- **Extensible**: Add new capabilities without changing the core
-- **Consistent**: Same interface regardless of which plugins you use
-- **Community-friendly**: Others can easily contribute new plugins 
