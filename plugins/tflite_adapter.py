@@ -321,23 +321,18 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                 for i, tensor in enumerate(preprocessed_input):
                     if i < len(self.input_details):
                         self.interpreter.set_tensor(self.input_details[i]["index"], tensor)
-                        print(f"  Debug: Set input {i} with shape {tensor.shape}: {tensor.flatten()[:5]}...")
                     else:
                         print(f"Warning: More input tensors provided than model expects")
                         break
             else:
                 # Single input tensor
                 self.interpreter.set_tensor(self.input_details[0]["index"], preprocessed_input)
-                print(f"  Debug: Set single input with shape {preprocessed_input.shape}")
 
             # Run inference
             self.interpreter.invoke()
 
             # Get output
             output_tensor = self.interpreter.get_tensor(self.output_details[0]["index"])
-            print(f"  Debug: Model output shape: {output_tensor.shape}")
-            print(f"  Debug: Model output values: {output_tensor.flatten()}")
-            
             return output_tensor
 
         except Exception as e:
