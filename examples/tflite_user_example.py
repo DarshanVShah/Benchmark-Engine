@@ -54,12 +54,11 @@ def main():
     print("TFLite model loaded successfully!")
     
     # Step 4: Load a test dataset
-    print("📋 Step 4: Loading test dataset...")
     dataset_path = "benchmark_datasets/localTestSets/goemotions_test.tsv"
     
     # If GoEmotions dataset doesn't exist locally, the engine will download it
     if not os.path.exists(dataset_path):
-        print("📥 GoEmotions dataset not found locally - will download automatically")
+        print("GoEmotions dataset not found locally - will download automatically")
     
     dataset_config = {
         "file_format": "tsv",
@@ -75,10 +74,10 @@ def main():
         print("❌ Failed to load dataset")
         return False
     
-    print("✅ Dataset loaded successfully!")
+    print("Dataset loaded successfully!")
     
     # Check model-dataset compatibility
-    print("\n🔍 Model-Dataset Compatibility Check:")
+    print("\nModel-Dataset Compatibility Check:")
     print(f"  Model input shape: {engine.model_adapter.input_shape}")
     print(f"  Model output shape: {engine.model_adapter.output_shape}")
     print(f"  Dataset labels: {len(engine.dataset.label_columns)} columns")
@@ -86,19 +85,15 @@ def main():
     
     # Warning about potential mismatch
     if engine.model_adapter.output_shape[1] != 27:
-        print(f"⚠️  WARNING: Model outputs {engine.model_adapter.output_shape[1]} classes but dataset has 27 emotions")
+        print(f"WARNING: Model outputs {engine.model_adapter.output_shape[1]} classes but dataset has 27 emotions")
         print("   This suggests the model was trained on a different emotion classification task")
         print("   Results may not be meaningful - consider using a compatible model or dataset")
     
     # Step 5: Add evaluation metrics
-    print("📋 Step 5: Setting up evaluation metrics...")
     accuracy_metric = TemplateAccuracyMetric(input_type="class_id")
     engine.add_metric("accuracy", accuracy_metric)
     
     # Step 6: Run the benchmark!
-    print("📋 Step 6: Running benchmark on your model...")
-    print("🚀 Starting emotion classification benchmark...")
-    
     results = engine.run_benchmark(num_samples=100)  # Test on 100 samples
     
     if results:
@@ -114,38 +109,20 @@ def main():
             else:
                 accuracy_value = accuracy
                 
-            print(f"🎯 Accuracy: {accuracy_value:.2%}")
+            print(f"Accuracy: {accuracy_value:.2%}")
             
-            # Explain low accuracy and provide solutions
-            if accuracy_value == 0.0:
-                print("\n🔍 Why 0% Accuracy? Common Causes:")
-                print("   1. Model-Dataset Mismatch: Model was trained on different labels")
-                print("   2. Tokenization Issues: Model expects different input format")
-                print("   3. Label Mapping: Dataset labels don't match model output classes")
-                print("   4. Preprocessing: Input format doesn't match training format")
-                
-                print("\n💡 Solutions:")
-                print("   1. Use a model trained on the same emotion dataset")
-                print("   2. Check if you need a different TFLite model")
-                print("   3. Verify the model's expected input/output format")
-                print("   4. Consider using a HuggingFace model instead")
-                
-                print("\n📚 For Production Use:")
-                print("   - Ensure model and dataset are compatible")
-                print("   - Use proper tokenization (BERT/RoBERTa)")
-                print("   - Match label schemes between training and evaluation")
             
             # Simple performance assessment
-            elif accuracy_value >= 0.8:
-                print("🌟 Excellent performance!")
+            if accuracy_value >= 0.8:
+                print("Excellent performance!")
             elif accuracy_value >= 0.6:
-                print("👍 Good performance!")
+                print("Good performance!")
             elif accuracy_value >= 0.4:
-                print("😐 Acceptable performance")
+                print("Acceptable performance")
             else:
-                print("📈 Room for improvement")
+                print("Room for improvement")
         else:
-            print("📊 Metrics available:", list(results["metrics"].keys()))
+            print("Metrics available:", list(results["metrics"].keys()))
         
         # Export results
         export_file = engine.export_results("my_emotion_classifier_results.json")
