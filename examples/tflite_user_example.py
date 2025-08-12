@@ -49,15 +49,10 @@ def main():
     engine.add_metric("universal_accuracy", universal_metric)
     
     # Run universal benchmark (engine selects random datasets unknown to you)
-    print("🎯 Starting Universal Emotion Benchmark")
-    print("The engine will select random emotion datasets and create a standardized format.")
-    print("Your adapter must work with the engine's standard - you won't know the datasets!")
-    print()
-    
     results = engine.run_universal_benchmark(num_samples=500)  # Test on 500 samples per dataset
     
     if results:
-        print(f"\n🎉 Universal benchmark completed successfully!")
+        print(f"\nUniversal benchmark completed successfully!")
         print(f"Your adapter achieved {results['universal_accuracy']:.1%} average accuracy")
         print(f"across {results['datasets_tested']} unknown emotion datasets.")
         return True
