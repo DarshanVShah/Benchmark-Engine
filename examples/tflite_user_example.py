@@ -27,19 +27,16 @@ def main():
         print("Please put your TFLite emotion classifier in the models/ directory.")
         return False
     
-    print(f"✅ Found TFLite model: {model_path}")
+    print(f"Found TFLite model: {model_path}")
     
     # Step 1: Create the benchmark engine
-    print("\n📋 Step 1: Setting up the benchmark engine...")
     engine = BenchmarkEngine()
     
     # Step 2: Register what we need
-    print("📋 Step 2: Registering components...")
     engine.register_adapter("tflite", TensorFlowLiteAdapter)
     engine.register_dataset("template", TemplateDataset)
     
     # Step 3: Load your TFLite model
-    print("📋 Step 3: Loading your TFLite emotion classifier...")
     model_config = {
         "device": "cpu",
         "precision": "fp32",
@@ -51,18 +48,17 @@ def main():
     }
     
     if not engine.load_model("tflite", model_path, model_config):
-        print("❌ Failed to load TFLite model")
+        print("Failed to load TFLite model")
         return False
     
-    print("✅ TFLite model loaded successfully!")
+    print("TFLite model loaded successfully!")
     
     # Step 4: Load a test dataset
-    print("📋 Step 4: Loading test dataset...")
     dataset_path = "benchmark_datasets/localTestSets/goemotions_test.tsv"
     
     # If GoEmotions dataset doesn't exist locally, the engine will download it
     if not os.path.exists(dataset_path):
-        print("📥 GoEmotions dataset not found locally - will download automatically")
+        print("GoEmotions dataset not found locally - will download automatically")
     
     dataset_config = {
         "file_format": "tsv",
@@ -75,27 +71,22 @@ def main():
     }
     
     if not engine.load_dataset("template", dataset_path, dataset_config):
-        print("❌ Failed to load dataset")
+        print("Failed to load dataset")
         return False
     
-    print("✅ Dataset loaded successfully!")
+    print("Dataset loaded successfully!")
     
     # Step 5: Add evaluation metrics
-    print("📋 Step 5: Setting up evaluation metrics...")
     accuracy_metric = TemplateAccuracyMetric(input_type="class_id")
     engine.add_metric("accuracy", accuracy_metric)
     
     # Step 6: Run the benchmark!
-    print("📋 Step 6: Running benchmark on your model...")
-    print("🚀 Starting emotion classification benchmark...")
-    
     results = engine.run_benchmark(num_samples=100)  # Test on 100 samples
     
     if results:
-        print("\n🎉 Benchmark completed successfully!")
-        print(f"📊 Tested on {results['benchmark_config']['num_samples']} samples")
-        print(f"⏱️  Total time: {results['timing']['total_time']:.2f} seconds")
-        print(f"🚀 Throughput: {results['timing']['throughput']:.1f} samples/second")
+        print(f"Tested on {results['benchmark_config']['num_samples']} samples")
+        print(f"Total time: {results['timing']['total_time']:.2f} seconds")
+        print(f"Throughput: {results['timing']['throughput']:.1f} samples/second")
         
         # Show accuracy results
         if "TemplateAccuracyMetric" in results["metrics"]:
@@ -105,27 +96,27 @@ def main():
             else:
                 accuracy_value = accuracy
                 
-            print(f"🎯 Accuracy: {accuracy_value:.2%}")
+            print(f"Accuracy: {accuracy_value:.2%}")
             
             # Simple performance assessment
             if accuracy_value >= 0.8:
-                print("🌟 Excellent performance!")
+                print("Excellent performance!")
             elif accuracy_value >= 0.6:
-                print("👍 Good performance!")
+                print("Good performance!")
             elif accuracy_value >= 0.4:
-                print("😐 Acceptable performance")
+                print("Acceptable performance")
             else:
-                print("📈 Room for improvement")
+                print("Room for improvement")
         else:
-            print("📊 Metrics available:", list(results["metrics"].keys()))
+            print("Metrics available:", list(results["metrics"].keys()))
         
         # Export results
         export_file = engine.export_results("my_emotion_classifier_results.json")
-        print(f"\n💾 Results saved to: {export_file}")
+        print(f"\nResults saved to: {export_file}")
         
         return True
     else:
-        print("❌ Benchmark failed")
+        print("Benchmark failed")
         return False
 
 
@@ -134,7 +125,7 @@ if __name__ == "__main__":
     success = main()
     
     if success:
-        print("\n🎊 All done! Check your results file for detailed analysis.")
+        print("\nAll done! Check your results file for detailed analysis.")
     else:
-        print("\n💥 Something went wrong. Check the error messages above.")
+        print("\nSomething went wrong. Check the error messages above.")
         sys.exit(1)
