@@ -4,10 +4,6 @@ HuggingFace Emotion Classification Example
 This example demonstrates how to use the BenchmarkEngine with a HuggingFace
 emotion classification model using our standard benchmark datasets.
 
-Key Architecture:
-- We provide standard benchmark datasets
-- Users provide their models wrapped in adapters
-- Adapters must conform to our BaseModelAdapter interface
 """
 
 import os

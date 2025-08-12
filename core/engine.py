@@ -16,9 +16,6 @@ from .reporting import BenchmarkReporter
 class BenchmarkEngine:
     """
     BenchmarkEngine - The "Exam Administrator"
-    
-    Provides standardized testing infrastructure and standard datasets.
-    Users provide models wrapped in adapters that conform to our interface.
     """
     
     def __init__(self):

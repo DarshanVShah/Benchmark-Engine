@@ -1,6 +1,6 @@
 """
-Simplified interfaces based on user's pseudocode design.
-This provides a much cleaner and more intuitive API.
+Simplified interfaces based on pseudocode design.
+Provides a much cleaner and more intuitive API.
 """
 
 from abc import ABC, abstractmethod
@@ -23,7 +23,7 @@ class ModelKind(Enum):
 
 class ModelBaseAdapter(ABC):
     """
-    Simplified base adapter following user's pseudocode design.
+    Simplified base adapter following pseudocode design.
     
     The framework provides the template, user just fills in the specifics.
     """
@@ -62,7 +62,7 @@ class ModelBaseAdapter(ABC):
 
 class TFLiteModelAdapter(ModelBaseAdapter):
     """
-    TFLite-specific adapter following user's pseudocode.
+    TFLite-specific adapter following pseudocode.
     """
     
     @abstractmethod
@@ -143,7 +143,7 @@ class TFLiteModelAdapter(ModelBaseAdapter):
 
 class HuggingFaceModelAdapter(ModelBaseAdapter):
     """
-    HuggingFace-specific adapter following user's pseudocode.
+    HuggingFace-specific adapter following pseudocode.
     """
     
     @abstractmethod
@@ -231,7 +231,7 @@ class DatasetRegistry:
 
 class SimpleBenchmarkEngine:
     """
-    Simplified benchmark engine following user's pseudocode design.
+    Simplified benchmark engine following pseudocode design.
     """
     
     def __init__(self):
@@ -253,7 +253,7 @@ class SimpleBenchmarkEngine:
         # Load dataset
         samples = self._load_dataset(dataset['path'])
         if not samples:
-            print(f"  ⚠️  No samples loaded from {dataset['path']}")
+            print(f"  No samples loaded from {dataset['path']}")
             return {
                 "model": model.__class__.__name__,
                 "dataset": dataset['name'],
@@ -332,9 +332,8 @@ class SimpleBenchmarkEngine:
         return min(realistic_accuracy, 0.95)  # Cap at 95% for dummy models
     
     def run(self):
-        """Run the complete benchmark following user's pseudocode."""
-        print("🚀 Running Simplified Benchmark")
-        print("="*50)
+        """Run the complete benchmark following pseudocode."""
+        print("Running Simplified Benchmark")
         
         results = []
         
@@ -342,7 +341,7 @@ class SimpleBenchmarkEngine:
             kind = model.kind()
             datasets = self.registry.get_compatible(kind)
             
-            print(f"\n📊 Testing {model.__class__.__name__} ({kind.value})")
+            print(f"\nTesting {model.__class__.__name__} ({kind.value})")
             print(f"   Compatible datasets: {len(datasets)}")
             
             for dataset in datasets:
@@ -352,7 +351,7 @@ class SimpleBenchmarkEngine:
                 # Print result
                 accuracy = result['accuracy']
                 expected_min, expected_max = result['expected_range']
-                status = "✅ PASS" if expected_min <= accuracy <= expected_max else "❌ FAIL"
+                status = "PASS" if expected_min <= accuracy <= expected_max else "FAIL"
                 
                 if 'error' in result:
                     print(f"   {dataset['name']}: {status} - {result['error']}")
