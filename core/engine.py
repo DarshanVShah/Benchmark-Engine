@@ -377,19 +377,16 @@ class BenchmarkEngine:
             print("Error: No model adapter loaded")
             return None
             
-        print("🚀 Starting Universal Emotion Benchmark")
-        print("=" * 50)
-        print("This benchmark uses random emotion datasets unknown to you.")
-        print("Your adapter must work with the engine's standardized format.")
-        print("=" * 50)
+        print("Starting Universal Emotion Benchmark")
+
         
         # Step 1: Select random emotion datasets
         emotion_datasets = self._select_random_emotion_datasets()
-        print(f"📊 Selected {len(emotion_datasets)} random emotion datasets for testing")
+        print(f"Selected {len(emotion_datasets)} random emotion datasets for testing")
         
         # Step 2: Create standardized label mapping and input shapes
         standard_config = self._create_standardized_config(emotion_datasets)
-        print(f"🔧 Created standardized config: {standard_config['num_classes']} emotion classes")
+        print(f"Created standardized config: {standard_config['num_classes']} emotion classes")
         print(f"   Input shape: {standard_config['input_shape']}")
         print(f"   Label mapping: {len(standard_config['label_mapping'])} standardized labels")
         
@@ -399,7 +396,7 @@ class BenchmarkEngine:
         total_datasets = len(emotion_datasets)
         
         for i, dataset_info in enumerate(emotion_datasets):
-            print(f"\n📋 Testing on Dataset {i+1}/{total_datasets}")
+            print(f"\nTesting on Dataset {i+1}/{total_datasets}")
             print(f"   Type: {dataset_info['type']} (unknown to you)")
             print(f"   Samples: {dataset_info['num_samples']}")
             
@@ -411,34 +408,33 @@ class BenchmarkEngine:
                     results[f"dataset_{i+1}"] = dataset_results
                     accuracy = dataset_results.get('accuracy', 0)
                     total_accuracy += accuracy
-                    print(f"   ✅ Accuracy: {accuracy:.2%}")
+                    print(f"   Accuracy: {accuracy:.2%}")
                 else:
-                    print(f"   ❌ Benchmark failed")
+                    print(f"   Benchmark failed")
             else:
-                print(f"   ❌ Failed to load dataset")
+                print(f"   Failed to load dataset")
         
         # Step 4: Calculate universal metrics
         if results:
             avg_accuracy = total_accuracy / total_datasets
-            print(f"\n🎯 Universal Benchmark Results")
-            print(f"=" * 50)
+            print(f"\nUniversal Benchmark Results")
             print(f"Average Accuracy: {avg_accuracy:.2%}")
             print(f"Datasets Tested: {total_datasets}")
             print(f"Successful Runs: {len(results)}")
             
             # Performance assessment
             if avg_accuracy >= 0.8:
-                print("🌟 Excellent universal performance!")
+                print("Excellent universal performance!")
             elif avg_accuracy >= 0.6:
-                print("👍 Good universal performance!")
+                print("Good universal performance!")
             elif avg_accuracy >= 0.4:
-                print("😐 Acceptable universal performance")
+                print("Acceptable universal performance")
             else:
-                print("📈 Room for improvement")
+                print("Room for improvement")
             
             # Export results
             export_file = self.export_results("universal_emotion_benchmark.json")
-            print(f"\n📁 Results saved to: {export_file}")
+            print(f"\nResults saved to: {export_file}")
             
             return {
                 "universal_accuracy": avg_accuracy,
@@ -448,7 +444,7 @@ class BenchmarkEngine:
                 "standard_config": standard_config
             }
         else:
-            print("❌ Universal benchmark failed - no datasets completed successfully")
+            print("Universal benchmark failed - no datasets completed successfully")
             return None
     
     def _select_random_emotion_datasets(self) -> List[Dict[str, Any]]:
