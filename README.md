@@ -18,7 +18,7 @@ A standardized benchmarking framework for machine learning models.
 - **Image Classification**: Computer vision tasks
 - **Object Detection**: Object localization and classification
 
-Currently on emotion classifiers.
+Currently only emotion classifiers.
 
 ## Using Your Own Models
 
