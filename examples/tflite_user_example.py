@@ -37,63 +37,90 @@ def main():
     engine.register_dataset("template", TemplateDataset)
     
     # Step 3: Load your TFLite model
+    print("📋 Step 3: Loading your TFLite emotion classifier...")
     model_config = {
         "device": "cpu",
         "precision": "fp32",
         "max_length": 128,
         "input_type": "text",
-        "output_type": "class_id",
-        "task_type": "single-label",
-        "is_multi_label": False
+        "output_type": "probabilities",  # Changed to probabilities for multi-label
+        "task_type": "multi-label",      # Changed to multi-label
+        "is_multi_label": True           # Enable multi-label mode
     }
     
     if not engine.load_model("tflite", model_path, model_config):
-        print("Failed to load TFLite model")
+        print("❌ Failed to load TFLite model")
         return False
     
-    print("TFLite model loaded successfully!")
+    print("✅ TFLite model loaded successfully!")
+    print(f"   Task type: {engine.model_adapter.task_type}")
+    print(f"   Multi-label: {engine.model_adapter.is_multi_label}")
+    print(f"   Output type: {engine.model_adapter.output_type.value}")
+    
+    # User guidance about TFLite preprocessing
+    print("\n💡 TFLite Adapter Configuration Notes:")
+    print(f"   - Model expects input shape: {engine.model_adapter.input_shape}")
+    print("   - Input format: [attention_mask, input_ids, token_type_ids]")
+    print("   - The adapter handles preprocessing automatically")
+    print("   - If you get errors, check the model's expected input format")
+    print("   - Consider using HuggingFace models for easier text processing")
     
     # Step 4: Load a test dataset
-    dataset_path = "benchmark_datasets/localTestSets/goemotions_test.tsv"
+    print("📋 Step 4: Loading test dataset...")
+    dataset_path = "benchmark_datasets/localTestSets/2018-E-c-En-test-gold.txt"
     
-    # If GoEmotions dataset doesn't exist locally, the engine will download it
+    # Check if dataset exists locally
     if not os.path.exists(dataset_path):
-        print("GoEmotions dataset not found locally - will download automatically")
+        print(f"❌ Dataset not found: {dataset_path}")
+        print("Please ensure the 2018-E-c-En-test-gold.txt file is in benchmark_datasets/localTestSets/")
+        return False
     
+    print(f"✅ Found local dataset: {dataset_path}")
+    
+    # Configure dataset for 2018 emotion classification (11 emotions, multi-label)
     dataset_config = {
         "file_format": "tsv",
-        "text_column": "text",
-        "label_columns": ["label"],
-        "task_type": "single-label",
+        "text_column": "Tweet",  # The actual tweet text column
+        "label_columns": ["anger", "anticipation", "disgust", "fear", "joy", "love", "optimism", "pessimism", "sadness", "surprise", "trust"],
+        "task_type": "multi-label",
         "max_length": 128,
         "delimiter": "\t",
-        "skip_header": False
+        "skip_header": True,  # 2018 dataset has header
+        "id_column": "ID"     # Specify ID column to ignore
     }
     
     if not engine.load_dataset("template", dataset_path, dataset_config):
         print("❌ Failed to load dataset")
         return False
     
-    print("Dataset loaded successfully!")
+    print("✅ Dataset loaded successfully!")
     
     # Check model-dataset compatibility
-    print("\nModel-Dataset Compatibility Check:")
+    print("\n🔍 Model-Dataset Compatibility Check:")
     print(f"  Model input shape: {engine.model_adapter.input_shape}")
     print(f"  Model output shape: {engine.model_adapter.output_shape}")
     print(f"  Dataset labels: {len(engine.dataset.label_columns)} columns")
-    print(f"  GoEmotions has 27 emotion classes")
+    print(f"  2018 dataset has 11 emotion classes")
     
-    # Warning about potential mismatch
-    if engine.model_adapter.output_shape[1] != 27:
-        print(f"WARNING: Model outputs {engine.model_adapter.output_shape[1]} classes but dataset has 27 emotions")
-        print("   This suggests the model was trained on a different emotion classification task")
-        print("   Results may not be meaningful - consider using a compatible model or dataset")
+    # Check if model output matches dataset
+    if engine.model_adapter.output_shape[1] == 11:
+        print("✅ Model output matches dataset! (11 classes)")
+        print("   This should work much better than the 27-class GoEmotions dataset")
+    else:
+        print(f"⚠️  Model outputs {engine.model_adapter.output_shape[1]} classes but dataset has 11 emotions")
+        print("   This may still cause compatibility issues")
     
     # Step 5: Add evaluation metrics
-    accuracy_metric = TemplateAccuracyMetric(input_type="class_id")
-    engine.add_metric("accuracy", accuracy_metric)
+    print("📋 Step 5: Setting up evaluation metrics...")
+    # Use multi-label metric since 2018 dataset is multi-label
+    from metrics.template_metric import TemplateMultiLabelMetric
+    multi_label_metric = TemplateMultiLabelMetric(metric_type="accuracy", threshold=0.5)
+    engine.add_metric("multi_label_accuracy", multi_label_metric)
     
     # Step 6: Run the benchmark!
+    print("📋 Step 6: Running benchmark on your model...")
+    print("🚀 Starting emotion classification benchmark with 2018 dataset...")
+    
     results = engine.run_benchmark(num_samples=100)  # Test on 100 samples
     
     if results:
@@ -102,27 +129,52 @@ def main():
         print(f"Throughput: {results['timing']['throughput']:.1f} samples/second")
         
         # Show accuracy results
-        if "TemplateAccuracyMetric" in results["metrics"]:
-            accuracy = results["metrics"]["TemplateAccuracyMetric"]
+        if "TemplateMultiLabelMetric" in results["metrics"]:
+            accuracy = results["metrics"]["TemplateMultiLabelMetric"]
             if isinstance(accuracy, dict) and "accuracy" in accuracy:
                 accuracy_value = accuracy["accuracy"]
-            else:
-                accuracy_value = accuracy
+                total_correct = accuracy.get("total_correct", 0)
+                total_predictions = accuracy.get("total_predictions", 0)
                 
-            print(f"Accuracy: {accuracy_value:.2%}")
-            
-            
-            # Simple performance assessment
-            if accuracy_value >= 0.8:
-                print("Excellent performance!")
-            elif accuracy_value >= 0.6:
-                print("Good performance!")
-            elif accuracy_value >= 0.4:
-                print("Acceptable performance")
-            else:
-                print("Room for improvement")
+                print(f"🎯 Multi-label Accuracy: {accuracy_value:.2%}")
+                print(f"   Correct predictions: {total_correct}/{total_predictions}")
+                
+                # Explain results and provide solutions
+                if accuracy_value == 0.0:
+                    print("\n🔍 Why 0% Accuracy? Common Causes:")
+                    print("   1. Input Format: Model expects different text preprocessing")
+                    print("   2. Tokenization: Model was trained on BERT/RoBERTa tokens")
+                    print("   3. Input Shape: Model expects [1, 1] but gets longer sequences")
+                    print("   4. Label Format: Model outputs may need different thresholding")
+                    
+                    print("\n💡 Solutions:")
+                    print("   1. Check model input requirements (tokenization, length)")
+                    print("   2. Verify the model was trained on similar text data")
+                    print("   3. Consider using a HuggingFace model for easier setup")
+                    print("   4. Adjust the multi-label threshold (currently 0.5)")
+                    
+                    print("\n📚 For Production Use:")
+                    print("   - Use models trained on similar text domains")
+                    print("   - Ensure proper tokenization (BERT/RoBERTa)")
+                    print("   - Match input preprocessing with training")
+                    print("   - Validate label thresholds for your use case")
+                
+                # Simple performance assessment
+                elif accuracy_value >= 0.8:
+                    print("🌟 Excellent performance!")
+                elif accuracy_value >= 0.6:
+                    print("👍 Good performance!")
+                elif accuracy_value >= 0.4:
+                    print("😐 Acceptable performance")
+                else:
+                    print("📈 Room for improvement")
+                    
+                print(f"\n🎉 Success! Your TFLite model achieved {accuracy_value:.1%} accuracy on the 2018 emotion dataset.")
+                print("   This shows the model is working with the framework!")
+                
         else:
-            print("Metrics available:", list(results["metrics"].keys()))
+            print("📊 Metrics available:", list(results["metrics"].keys()))
+            print("   Expected: TemplateMultiLabelMetric")
         
         # Export results
         export_file = engine.export_results("my_emotion_classifier_results.json")

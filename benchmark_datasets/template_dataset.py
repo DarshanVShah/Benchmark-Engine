@@ -69,6 +69,7 @@ class TemplateDataset(BaseDataset):
             self.label_columns = config["label_columns"]
             self.task_type = config["task_type"]
             self.max_length = config.get("max_length", 512)
+            self.skip_header = config.get("skip_header", False)  # Store skip_header setting
 
             # Check if file exists
             if not os.path.exists(dataset_path):
@@ -113,7 +114,36 @@ class TemplateDataset(BaseDataset):
         self.data = []
         
         with open(file_path, "r", encoding="utf-8") as f:
-            for line_num, line in enumerate(f):
+            lines = f.readlines()
+            
+            # Handle header row
+            if lines and hasattr(self, 'skip_header') and self.skip_header:
+                header_line = lines[0].strip()
+                headers = header_line.split('\t')
+                lines = lines[1:]  # Skip header
+                
+                # Find column indices
+                text_col_idx = None
+                label_col_indices = {}
+                
+                for i, header in enumerate(headers):
+                    if header == self.text_column:
+                        text_col_idx = i
+                    elif header in self.label_columns:
+                        label_col_indices[header] = i
+                
+                if text_col_idx is None:
+                    print(f"  Error: Text column '{self.text_column}' not found in headers: {headers}")
+                    return
+                
+                print(f"  Found columns: text at {text_col_idx}, labels at {label_col_indices}")
+            else:
+                # No header - assume first column is text, rest are labels
+                text_col_idx = 0
+                label_col_indices = {col: i+1 for i, col in enumerate(self.label_columns)}
+            
+            # Process data lines
+            for line_num, line in enumerate(lines):
                 line = line.strip()
                 if not line:
                     continue
@@ -123,30 +153,28 @@ class TemplateDataset(BaseDataset):
                 if len(parts) < 2:
                     continue
                 
-                # Extract text and labels
-                text = parts[0].strip()
-                if not text:
+                # Extract text
+                if text_col_idx < len(parts):
+                    text = parts[text_col_idx].strip()
+                    if not text:
+                        continue
+                else:
                     continue
                 
                 # Create sample with proper structure
                 sample = {self.text_column: text}
                 
-                # Handle different label formats
-                if len(parts) >= 2:
-                    label_value = parts[1].strip()
-                    
-                    # Apply label mapping if specified
-                    if hasattr(self, 'label_mapping') and self.label_mapping:
-                        label_value = self.label_mapping.get(label_value, label_value)
-                    
-                    # Add label to sample
-                    for label_col in self.label_columns:
-                        sample[label_col] = label_value
-                
-                # Add additional columns if available
-                for i, col_name in enumerate(self.label_columns[1:], start=2):
-                    if i < len(parts):
-                        sample[col_name] = parts[i].strip()
+                # Extract labels
+                for label_col, col_idx in label_col_indices.items():
+                    if col_idx < len(parts):
+                        label_value = parts[col_idx].strip()
+                        # Convert to int for binary labels (0/1)
+                        try:
+                            sample[label_col] = int(label_value)
+                        except ValueError:
+                            sample[label_col] = 0  # Default to 0 if conversion fails
+                    else:
+                        sample[label_col] = 0  # Default to 0 if column missing
                 
                 self.data.append(sample)
         
