@@ -9,16 +9,20 @@ Example usage:
     engine.load_model("huggingface", "bert-base-uncased")
 """
 
-from typing import Any, Dict
-
+import time
 import torch
+import numpy as np
+from typing import Dict, Any, List, Optional, Union
 from transformers import (
     AutoModel,
-    AutoModelForSequenceClassification,
     AutoTokenizer,
+    AutoModelForSequenceClassification,
+    AutoModelForTokenClassification,
+    AutoModelForQuestionAnswering,
+    pipeline,
+    Pipeline,
 )
-
-from core import BaseModelAdapter, DataType, ModelType, OutputType
+from core import BaseModelAdapter, ModelType, DataType, OutputType
 
 
 class HuggingFaceAdapter(BaseModelAdapter):

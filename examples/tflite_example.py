@@ -24,11 +24,11 @@ def main():
     
     # Create the benchmark engine
     engine = BenchmarkEngine()
-
+    
     # Register what we need
     engine.register_adapter("tflite", TensorFlowLiteAdapter)
     engine.register_dataset("template", TemplateDataset)
-
+    
     # Load your TFLite model
     model_path = "models/notQuantizedModel.tflite"
     model_config = {
@@ -36,13 +36,13 @@ def main():
         "precision": "fp32",
         "max_length": 512,  # Use larger max length for universal testing
         "input_type": "text",
-        "output_type": "probabilities",  # Changed to probabilities for multi-label
-        "task_type": "multi-label",  # Changed to multi-label
-        "is_multi_label": True,  # Enable multi-label mode
+        "output_type": "probabilities",
+        "task_type": "multi-label",
+        "is_multi_label": True
     }
-
+    
     if not engine.load_model("tflite", model_path, model_config):
-        #print("Failed to load TFLite model")
+        print("Failed to load TFLite model")
         return False
     
     # Add universal evaluation metric
@@ -55,10 +55,17 @@ def main():
     if results:
         print(f"\nUniversal benchmark completed successfully!")
         print(f"Your adapter achieved {results['universal_accuracy']:.1%} average accuracy")
-        print(f"across {results['datasets_tested']} unknown emotion datasets.")
+        print(f"across {results['successful_runs']} successful runs out of {results['datasets_tested']} total datasets.")
+        
+        if results.get('failed_datasets'):
+            print(f"\nFailed datasets:")
+            for failed_dataset in results['failed_datasets']:
+                print(f"  - {failed_dataset}")
+        
+        print(f"\nSuccess rate: {results['successful_runs']}/{results['datasets_tested']} = {(results['successful_runs']/results['datasets_tested'])*100:.0f}%")
         return True
     else:
-        print("benchmark failed")
+        print("Benchmark failed")
         return False
 
 

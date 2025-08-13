@@ -349,6 +349,17 @@ class TemplateDataset(BaseDataset):
 
     def _extract_targets(self, item: Dict[str, Any]) -> Any:
         """Extract targets based on configured task type."""
+        # Safety check for None or empty label_columns
+        if not self.label_columns:
+            if self.task_type == "multi-label":
+                return {}  # Return empty dict for multi-label
+            elif self.task_type == "classification":
+                return 0   # Return 0 for single-label classification
+            elif self.task_type == "regression":
+                return 0.0 # Return 0.0 for regression
+            else:
+                return 0   # Default fallback
+        
         if self.task_type == "multi-label":
             # Extract multiple labels
             labels = {}
