@@ -5,20 +5,24 @@ This adapter handles TensorFlow Lite models for benchmarking.
 Supports various input/output types and provides standardized interface.
 """
 
+import importlib.util
 import os
-import time
+from typing import Any, Dict, List, Union
+
 import numpy as np
-from typing import Dict, Any, List, Optional, Union
+
+from core.interfaces import BaseDataset
 
 # Conditional import to avoid errors when tensorflow is not installed
-try:
+if importlib.util.find_spec("tensorflow") is not None:
     import tensorflow as tf
+
     TENSORFLOW_AVAILABLE = True
-except ImportError:
+else:
     TENSORFLOW_AVAILABLE = False
     tf = None
 
-from core import BaseModelAdapter, DataType, OutputType, ModelType
+from core import BaseModelAdapter, DataType, ModelType, OutputType
 
 
 class TensorFlowLiteAdapter(BaseModelAdapter):
@@ -59,9 +63,11 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
     def load(self, model_path: str) -> bool:
         """Load TensorFlow Lite model from file."""
         if not TENSORFLOW_AVAILABLE:
-            print("Error: TensorFlow is not installed. Please install tensorflow: pip install tensorflow")
+            print(
+                "Error: TensorFlow is not installed. Please install tensorflow: pip install tensorflow"
+            )
             return False
-            
+
         try:
             print(f"Loading TensorFlow Lite model from {model_path}")
 
@@ -125,7 +131,7 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                 self.max_length = config["max_length"]
                 print(f"  Max length set to: {self.max_length}")
 
-            print(f"  TensorFlow Lite model configured")
+            print("  TensorFlow Lite model configured")
             return True
 
         except Exception as e:
@@ -169,7 +175,9 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                     text = raw_input["input"]
                 else:
                     # Try to find any string value
-                    text = next((v for v in raw_input.values() if isinstance(v, str)), "")
+                    text = next(
+                        (v for v in raw_input.values() if isinstance(v, str)), ""
+                    )
             elif isinstance(raw_input, str):
                 text = raw_input
             else:
@@ -177,18 +185,18 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
 
             # Get the actual input shapes from the model
             batch_size = 1
-            
+
             # Create input tensors that match the model's expected format
             # Based on the model input details: [attention_mask, input_ids, token_type_ids]
-            
+
             # attention_mask: Use actual shape from model
             attention_mask_shape = self.input_details[0]["shape"]
             attention_mask = np.ones(attention_mask_shape, dtype=np.int32)
-            
+
             # input_ids: Use actual shape from model
             input_ids_shape = self.input_details[1]["shape"]
             input_ids = np.zeros(input_ids_shape, dtype=np.int32)
-            
+
             # For very short sequences (like [1, 1]), we need to handle differently
             if len(input_ids_shape) == 2 and input_ids_shape[1] == 1:
                 # Model expects single token - use first character as token ID
@@ -201,15 +209,15 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                 max_length = input_ids_shape[1] if len(input_ids_shape) > 1 else 1
                 if len(text) > max_length:
                     text = text[:max_length]
-                
+
                 for i, char in enumerate(text):
                     if i < max_length:
                         input_ids[0, i] = ord(char) % 1000
-            
+
             # token_type_ids: Use actual shape from model
             token_type_ids_shape = self.input_details[2]["shape"]
             token_type_ids = np.zeros(token_type_ids_shape, dtype=np.int32)
-            
+
             # Return as a list of tensors matching the model's input format
             return [attention_mask, input_ids, token_type_ids]
 
@@ -217,9 +225,13 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             print(f"Error in text preprocessing: {e}")
             # Return dummy tensors with correct shapes from model
             return [
-                np.ones(self.input_details[0]["shape"], dtype=np.int32),  # attention_mask
+                np.ones(
+                    self.input_details[0]["shape"], dtype=np.int32
+                ),  # attention_mask
                 np.zeros(self.input_details[1]["shape"], dtype=np.int32),  # input_ids
-                np.zeros(self.input_details[2]["shape"], dtype=np.int32)   # token_type_ids
+                np.zeros(
+                    self.input_details[2]["shape"], dtype=np.int32
+                ),  # token_type_ids
             ]
 
     def _preprocess_image(self, raw_input: Union[str, Dict[str, Any]]) -> np.ndarray:
@@ -243,22 +255,25 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             # In a real implementation, you'd use proper image loading and preprocessing
             try:
                 import cv2
-                
+
                 image = cv2.imread(image_path)
                 if image is None:
                     raise ValueError(f"Could not load image: {image_path}")
 
                 # Resize to expected input shape
                 if len(self.input_shape) == 4:  # [batch, height, width, channels]
-                    target_height, target_width = self.input_shape[1], self.input_shape[2]
+                    target_height, target_width = (
+                        self.input_shape[1],
+                        self.input_shape[2],
+                    )
                 else:
                     target_height, target_width = 224, 224  # Default size
 
                 resized = cv2.resize(image, (target_width, target_height))
-                
+
                 # Normalize pixel values
                 normalized = resized.astype(np.float32) / 255.0
-                
+
                 # Add batch dimension if needed
                 if len(normalized.shape) == 3:
                     normalized = np.expand_dims(normalized, axis=0)
@@ -300,12 +315,15 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             print(f"Error in tensor preprocessing: {e}")
             return np.zeros(self.input_shape, dtype=np.float32)
 
-    def run(self, preprocessed_input: Union[np.ndarray, List[np.ndarray]]) -> np.ndarray:
+    def run(
+        self, preprocessed_input: Union[np.ndarray, List[np.ndarray]]
+    ) -> np.ndarray:
         """
         Run inference on preprocessed input.
 
         Args:
-            preprocessed_input: Preprocessed input from preprocess() (can be single tensor or list of tensors)
+            preprocessed_input: Preprocessed input from preprocess()
+            (can be single tensor or list of tensors)
 
         Returns:
             Raw model output
@@ -320,13 +338,17 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                 # Set multiple input tensors
                 for i, tensor in enumerate(preprocessed_input):
                     if i < len(self.input_details):
-                        self.interpreter.set_tensor(self.input_details[i]["index"], tensor)
+                        self.interpreter.set_tensor(
+                            self.input_details[i]["index"], tensor
+                        )
                     else:
-                        print(f"Warning: More input tensors provided than model expects")
+                        print("Warning: More input tensors provided than model expects")
                         break
             else:
                 # Single input tensor
-                self.interpreter.set_tensor(self.input_details[0]["index"], preprocessed_input)
+                self.interpreter.set_tensor(
+                    self.input_details[0]["index"], preprocessed_input
+                )
 
             # Run inference
             self.interpreter.invoke()
@@ -358,15 +380,15 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                 # For classification, return class IDs
                 predicted_class = np.argmax(model_output, axis=-1)
                 return predicted_class.tolist()
-            
+
             elif self.output_type == OutputType.PROBABILITIES:
                 # For probabilities, return as-is
                 return model_output.tolist()
-            
+
             elif self.output_type == OutputType.LOGITS:
                 # For logits, return as-is
                 return model_output.tolist()
-            
+
             else:
                 # Default: return as-is
                 return model_output.tolist()

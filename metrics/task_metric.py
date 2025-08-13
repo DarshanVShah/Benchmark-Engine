@@ -6,11 +6,20 @@ configurable evaluation criteria. Users can specify task type and customize
 evaluation parameters.
 """
 
+from typing import Any, Dict, List, Optional
+
 import numpy as np
-from typing import Dict, Any, List, Optional, Union
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+    mean_absolute_error,
+    mean_squared_error,
+    precision_score,
+    r2_score,
+    recall_score,
+)
+
 from core import BaseMetric
 
 
@@ -435,7 +444,7 @@ class EmotionDetectionMetric(BaseMetric):
                 metrics[f"{dimension}_correlation"] = (
                     corr if not np.isnan(corr) else 0.0
                 )
-            except:
+            except Exception:
                 metrics[f"{dimension}_correlation"] = 0.0
 
         if self.include_mse:
@@ -461,7 +470,7 @@ class EmotionDetectionMetric(BaseMetric):
                     corr = np.corrcoef(target_vad[dim], pred_vad[dim])[0, 1]
                     if not np.isnan(corr):
                         correlations.append(corr)
-                except:
+                except Exception:
                     pass
 
         if correlations:

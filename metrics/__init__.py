@@ -8,10 +8,10 @@ This package contains metric implementations for evaluating model performance:
 - Custom metrics (fairness, robustness, etc.)
 """
 
-from .dummy_metric import DummyAccuracyMetric
 from .accuracy_metric import AccuracyMetric
+from .dummy_metric import DummyAccuracyMetric
 from .generic_metric import GenericMetric
-from .task_metric import ClassificationMetric, RegressionMetric, ConfigurableMetric
+from .task_metric import ClassificationMetric, ConfigurableMetric, RegressionMetric
 from .template_metric import TemplateAccuracyMetric, TemplateMultiLabelMetric
 
 __all__ = [
