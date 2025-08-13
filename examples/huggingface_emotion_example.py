@@ -14,13 +14,12 @@ from typing import Dict, List, Tuple, Optional
 # Add the current directory to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.engine import BenchmarkEngine
-from plugins.huggingface_adapter import HuggingFaceAdapter
-from benchmark_datasets.template_dataset import TemplateDataset
 from benchmark_datasets.goemotions_dataset import GoEmotionsDataset
-from metrics.template_metric import TemplateAccuracyMetric
-from metrics.template_metric import TemplateMultiLabelMetric
+from benchmark_datasets.template_dataset import TemplateDataset
 from core.dataset_registry import DatasetRegistry, TaskType
+from core.engine import BenchmarkEngine
+from metrics.template_metric import TemplateAccuracyMetric, TemplateMultiLabelMetric
+from plugins.huggingface_adapter import HuggingFaceAdapter
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -50,7 +49,7 @@ class HuggingFaceEmotionBenchmark:
             # Create engine for this dataset
             engine = BenchmarkEngine()
             engine.register_adapter("huggingface", HuggingFaceAdapter)
-            
+
             # Use appropriate dataset class for our standard datasets
             if dataset_config.name == "GoEmotions":
                 engine.register_dataset("goemotions", GoEmotionsDataset)
@@ -58,19 +57,19 @@ class HuggingFaceEmotionBenchmark:
             else:
                 engine.register_dataset("template", TemplateDataset)
                 dataset_class_name = "template"
-            
-            # Configure model for this dataset  
-            is_multi_label = dataset_config.config.get('task_type') == 'multi-label'
+
+            # Configure model for this dataset
+            is_multi_label = dataset_config.config.get("task_type") == "multi-label"
             model_config = {
                 "model_name": "j-hartmann/emotion-english-distilroberta-base",  # Real pre-trained emotion classifier
                 "device": "cpu",  # Use CPU for compatibility
                 "max_length": 128,
                 "input_type": "text",
                 "output_type": "probabilities" if is_multi_label else "class_id",
-                "task_type": dataset_config.config.get('task_type', 'single-label'),
-                "is_multi_label": is_multi_label
+                "task_type": dataset_config.config.get("task_type", "single-label"),
+                "is_multi_label": is_multi_label,
             }
-            
+
             # Load model
             if not engine.load_model("huggingface", model_config["model_name"], model_config):
                 logger.error(f"Failed to load HuggingFace model for {dataset_config.name}")
@@ -88,7 +87,7 @@ class HuggingFaceEmotionBenchmark:
                 metric = TemplateAccuracyMetric(input_type="class_id")
             
             engine.add_metric("template", metric)
-            
+
             # Validate setup
             if not engine.validate_setup():
                 logger.error(f"Setup validation failed for {dataset_config.name}")
@@ -96,7 +95,7 @@ class HuggingFaceEmotionBenchmark:
             
             # Run benchmark with limited samples for faster testing
             benchmark_results = engine.run_benchmark(num_samples=50)
-            
+
             if benchmark_results and "metrics" in benchmark_results:
                 # Extract accuracy from results
                 accuracy = None
@@ -104,7 +103,7 @@ class HuggingFaceEmotionBenchmark:
                     if isinstance(metric_values, dict) and "accuracy" in metric_values:
                         accuracy = metric_values["accuracy"]
                         break
-                
+
                 if accuracy is not None:
                     return accuracy
             
@@ -172,7 +171,7 @@ class HuggingFaceDatasetTester:
             "input_type": "text",
             "output_type": "class_id",
             "task_type": "single-label",
-            "is_multi_label": False
+            "is_multi_label": False,
         }
     
     def test_huggingface_datasets(self) -> Optional[float]:

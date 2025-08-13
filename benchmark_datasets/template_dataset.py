@@ -66,7 +66,9 @@ class TemplateDataset(BaseDataset):
             self.label_columns = config["label_columns"]
             self.task_type = config["task_type"]
             self.max_length = config.get("max_length", 512)
-            self.skip_header = config.get("skip_header", False)  # Store skip_header setting
+            self.skip_header = config.get(
+                "skip_header", False
+            )  # Store skip_header setting
 
             # Check if file exists
             if not os.path.exists(dataset_path):
@@ -184,14 +186,14 @@ class TemplateDataset(BaseDataset):
     def _load_tsv(self, file_path: str):
         """Load TSV file with flexible column handling."""
         self.data = []
-        
+
         with open(file_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
-            
+
             # Handle header row
-            if lines and hasattr(self, 'skip_header') and self.skip_header:
+            if lines and hasattr(self, "skip_header") and self.skip_header:
                 header_line = lines[0].strip()
-                headers = header_line.split('\t')
+                headers = header_line.split("\t")
                 lines = lines[1:]  # Skip header
                 
                 # Find column indices - handle both column names and indices
@@ -245,12 +247,12 @@ class TemplateDataset(BaseDataset):
                 line = line.strip()
                 if not line:
                     continue
-                
+
                 # Split by tab
-                parts = line.split('\t')
+                parts = line.split("\t")
                 if len(parts) < 2:
                     continue
-                
+
                 # Extract text
                 if text_col_idx < len(parts):
                     text = parts[text_col_idx].strip()
@@ -258,7 +260,7 @@ class TemplateDataset(BaseDataset):
                         continue
                 else:
                     continue
-                
+
                 # Create sample with proper structure
                 sample = {"text": text}  # Always use "text" as key for compatibility
                 
@@ -273,7 +275,7 @@ class TemplateDataset(BaseDataset):
                             sample[label_col] = 0  # Default to 0 if conversion fails
                     else:
                         sample[label_col] = 0  # Default to 0 if column missing
-                
+
                 self.data.append(sample)
         
         # Dataset loaded successfully

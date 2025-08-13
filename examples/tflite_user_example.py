@@ -12,6 +12,7 @@ import sys
 # Add the current directory to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from benchmark_datasets.template_dataset import TemplateDataset
 from core.engine import BenchmarkEngine
 from plugins.tflite_adapter import TensorFlowLiteAdapter
 from benchmark_datasets.template_dataset import TemplateDataset
@@ -23,11 +24,11 @@ def main():
     
     # Create the benchmark engine
     engine = BenchmarkEngine()
-    
+
     # Register what we need
     engine.register_adapter("tflite", TensorFlowLiteAdapter)
     engine.register_dataset("template", TemplateDataset)
-    
+
     # Load your TFLite model
     model_path = "models/notQuantizedModel.tflite"
     model_config = {
@@ -35,11 +36,11 @@ def main():
         "precision": "fp32",
         "max_length": 512,  # Use larger max length for universal testing
         "input_type": "text",
-        "output_type": "probabilities",
-        "task_type": "multi-label",
-        "is_multi_label": True
+        "output_type": "probabilities",  # Changed to probabilities for multi-label
+        "task_type": "multi-label",  # Changed to multi-label
+        "is_multi_label": True,  # Enable multi-label mode
     }
-    
+
     if not engine.load_model("tflite", model_path, model_config):
         #print("Failed to load TFLite model")
         return False
@@ -63,7 +64,7 @@ def main():
 
 if __name__ == "__main__":
     success = main()
-    
+
     if success:
         print("\nCheck the benchmark results for detailed analysis.")
     else:

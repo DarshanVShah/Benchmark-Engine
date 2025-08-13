@@ -5,20 +5,24 @@ This adapter handles TensorFlow Lite models for benchmarking.
 Supports various input/output types and provides standardized interface.
 """
 
+import importlib.util
 import os
-import time
+from typing import Any, Dict, List, Union
+
 import numpy as np
-from typing import Dict, Any, List, Optional, Union
+
+from core.interfaces import BaseDataset
 
 # Conditional import to avoid errors when tensorflow is not installed
-try:
+if importlib.util.find_spec("tensorflow") is not None:
     import tensorflow as tf
+
     TENSORFLOW_AVAILABLE = True
-except ImportError:
+else:
     TENSORFLOW_AVAILABLE = False
     tf = None
 
-from core import BaseModelAdapter, DataType, OutputType, ModelType
+from core import BaseModelAdapter, DataType, ModelType, OutputType
 
 
 class TensorFlowLiteAdapter(BaseModelAdapter):
@@ -62,7 +66,7 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
         if not TENSORFLOW_AVAILABLE:
             self._load_error = "TensorFlow is not installed. Please install tensorflow: pip install tensorflow"
             return False
-            
+
         try:
             if not os.path.exists(model_path):
                 self._load_error = f"Model file not found: {model_path}"
@@ -157,7 +161,9 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                     text = raw_input["input"]
                 else:
                     # Try to find any string value
-                    text = next((v for v in raw_input.values() if isinstance(v, str)), "")
+                    text = next(
+                        (v for v in raw_input.values() if isinstance(v, str)), ""
+                    )
             elif isinstance(raw_input, str):
                 text = raw_input
             else:
@@ -253,22 +259,25 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             # In a real implementation, you'd use proper image loading and preprocessing
             try:
                 import cv2
-                
+
                 image = cv2.imread(image_path)
                 if image is None:
                     raise ValueError(f"Could not load image: {image_path}")
 
                 # Resize to expected input shape
                 if len(self.input_shape) == 4:  # [batch, height, width, channels]
-                    target_height, target_width = self.input_shape[1], self.input_shape[2]
+                    target_height, target_width = (
+                        self.input_shape[1],
+                        self.input_shape[2],
+                    )
                 else:
                     target_height, target_width = 224, 224  # Default size
 
                 resized = cv2.resize(image, (target_width, target_height))
-                
+
                 # Normalize pixel values
                 normalized = resized.astype(np.float32) / 255.0
-                
+
                 # Add batch dimension if needed
                 if len(normalized.shape) == 3:
                     normalized = np.expand_dims(normalized, axis=0)
@@ -308,12 +317,15 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
         except Exception as e:
             return np.zeros(self.input_shape, dtype=np.float32)
 
-    def run(self, preprocessed_input: Union[np.ndarray, List[np.ndarray]]) -> np.ndarray:
+    def run(
+        self, preprocessed_input: Union[np.ndarray, List[np.ndarray]]
+    ) -> np.ndarray:
         """
         Run inference on preprocessed input.
 
         Args:
-            preprocessed_input: Preprocessed input from preprocess() (can be single tensor or list of tensors)
+            preprocessed_input: Preprocessed input from preprocess()
+            (can be single tensor or list of tensors)
 
         Returns:
             Raw model output
@@ -327,12 +339,16 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                 # Set multiple input tensors
                 for i, tensor in enumerate(preprocessed_input):
                     if i < len(self.input_details):
-                        self.interpreter.set_tensor(self.input_details[i]["index"], tensor)
+                        self.interpreter.set_tensor(
+                            self.input_details[i]["index"], tensor
+                        )
                     else:
                         break
             else:
                 # Single input tensor
-                self.interpreter.set_tensor(self.input_details[0]["index"], preprocessed_input)
+                self.interpreter.set_tensor(
+                    self.input_details[0]["index"], preprocessed_input
+                )
 
             # Run inference
             self.interpreter.invoke()
@@ -363,15 +379,15 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                 # For classification, return class IDs
                 predicted_class = np.argmax(model_output, axis=-1)
                 return predicted_class.tolist()
-            
+
             elif self.output_type == OutputType.PROBABILITIES:
                 # For probabilities, return as-is
                 return model_output.tolist()
-            
+
             elif self.output_type == OutputType.LOGITS:
                 # For logits, return as-is
                 return model_output.tolist()
-            
+
             else:
                 # Default: return as-is
                 return model_output.tolist()

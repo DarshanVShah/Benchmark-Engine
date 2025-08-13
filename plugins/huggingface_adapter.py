@@ -9,20 +9,16 @@ Example usage:
     engine.load_model("huggingface", "bert-base-uncased")
 """
 
-import time
+from typing import Any, Dict
+
 import torch
-import numpy as np
-from typing import Dict, Any, List, Optional, Union
 from transformers import (
     AutoModel,
-    AutoTokenizer,
     AutoModelForSequenceClassification,
-    AutoModelForTokenClassification,
-    AutoModelForQuestionAnswering,
-    pipeline,
-    Pipeline,
+    AutoTokenizer,
 )
-from core import BaseModelAdapter, ModelType, DataType, OutputType
+
+from core import BaseModelAdapter, DataType, ModelType, OutputType
 
 
 class HuggingFaceAdapter(BaseModelAdapter):
@@ -83,19 +79,27 @@ class HuggingFaceAdapter(BaseModelAdapter):
             # Try to determine model type based on path
             if "bert" in model_path.lower():
                 self.model_type = "bert"
-                self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+                self.model = AutoModelForSequenceClassification.from_pretrained(
+                    model_path
+                )
             elif "roberta" in model_path.lower():
                 self.model_type = "roberta"
-                self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+                self.model = AutoModelForSequenceClassification.from_pretrained(
+                    model_path
+                )
             elif "distilbert" in model_path.lower():
                 self.model_type = "distilbert"
-                self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+                self.model = AutoModelForSequenceClassification.from_pretrained(
+                    model_path
+                )
             else:
                 # Generic approach - try sequence classification first
                 try:
-                    self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+                    self.model = AutoModelForSequenceClassification.from_pretrained(
+                        model_path
+                    )
                     self.model_type = "sequence_classification"
-                except:
+                except Exception:
                     # Try generic model
                     self.model = AutoModel.from_pretrained(model_path)
                     self.model_type = "generic"
@@ -178,7 +182,9 @@ class HuggingFaceAdapter(BaseModelAdapter):
                     text = raw_input["input"]
                 else:
                     # Try to find any string value
-                    text = next((v for v in raw_input.values() if isinstance(v, str)), "")
+                    text = next(
+                        (v for v in raw_input.values() if isinstance(v, str)), ""
+                    )
             elif isinstance(raw_input, str):
                 text = raw_input
             else:

@@ -4,41 +4,25 @@ Core module for the BenchmarkEngine framework.
 This module provides the main interfaces and engine for ML model benchmarking.
 """
 
-from .interfaces import (
-    BaseModelAdapter,
-    BaseMetric, 
-    BaseDataset,
-    DataType,
-    OutputType
-)
-
+from .dataset_registry import DatasetConfig, DatasetRegistry, TaskType
 from .engine import BenchmarkEngine
-
-from .dataset_registry import (
-    DatasetRegistry,
-    DatasetConfig,
-    TaskType
-)
-
+from .interfaces import BaseDataset, BaseMetric, BaseModelAdapter, DataType, OutputType
 from .types import BenchmarkConfig, ModelType
 
 __all__ = [
     # Core engine
     "BenchmarkEngine",
-    
     # Interfaces
     "BaseModelAdapter",
-    "BaseMetric", 
+    "BaseMetric",
     "BaseDataset",
     "DataType",
     "OutputType",
-    
     # Dataset registry
     "DatasetRegistry",
-    "DatasetConfig", 
+    "DatasetConfig",
     "TaskType",
-    
     # Configuration
     "BenchmarkConfig",
-    "ModelType"
+    "ModelType",
 ]
