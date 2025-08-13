@@ -41,7 +41,7 @@ def main():
     }
     
     if not engine.load_model("tflite", model_path, model_config):
-        print("Failed to load TFLite model")
+        #print("Failed to load TFLite model")
         return False
     
     # Add universal evaluation metric
@@ -57,7 +57,7 @@ def main():
         print(f"across {results['datasets_tested']} unknown emotion datasets.")
         return True
     else:
-        print("Universal benchmark failed")
+        print("benchmark failed")
         return False
 
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     success = main()
     
     if success:
-        print("\nAll done! Check the universal benchmark results for detailed analysis.")
+        print("\nCheck the benchmark results for detailed analysis.")
     else:
         print("\nSomething went wrong. Check the error messages above.")
         sys.exit(1)
