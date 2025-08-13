@@ -2,8 +2,8 @@
 Core types and enums for the BenchmarkEngine framework.
 """
 
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
 
 

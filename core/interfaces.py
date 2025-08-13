@@ -6,8 +6,9 @@ Uses Template Method pattern with explicit data contracts for type safety.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Tuple, Optional, Union
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
 from .types import ModelType
 
 

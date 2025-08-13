@@ -5,10 +5,11 @@ This adapter simulates model loading and inference without requiring
 actual model files or ML frameworks.
 """
 
-import time
 import random
-from typing import Dict, Any
-from core import BaseModelAdapter, ModelType, DataType, OutputType
+import time
+from typing import Any, Dict
+
+from core import BaseModelAdapter, DataType, ModelType, OutputType
 
 
 class DummyModelAdapter(BaseModelAdapter):
@@ -82,7 +83,7 @@ class DummyModelAdapter(BaseModelAdapter):
         if "device" in config and config["device"] == "gpu":
             self.inference_delay = 0.005  # Faster on GPU
 
-        print(f"Dummy model configured")
+        print("Dummy model configured")
         return True
 
     def preprocess(self, raw_input: Any) -> Any:
@@ -140,17 +141,17 @@ class DummyModelAdapter(BaseModelAdapter):
         # In a real implementation, this would be actual model inference
         if isinstance(preprocessed_input, dict) and "input" in preprocessed_input:
             input_data = preprocessed_input["input"]
-            
+
             # Simple rule-based classification for demonstration
             if isinstance(input_data, str):
                 # Text classification simulation
                 positive_words = ["good", "great", "excellent", "amazing", "wonderful"]
                 negative_words = ["bad", "terrible", "awful", "horrible", "poor"]
-                
+
                 text = input_data.lower()
                 positive_score = sum(1 for word in positive_words if word in text)
                 negative_score = sum(1 for word in negative_words if word in text)
-                
+
                 if positive_score > negative_score:
                     return [1]  # Positive class
                 elif negative_score > positive_score:

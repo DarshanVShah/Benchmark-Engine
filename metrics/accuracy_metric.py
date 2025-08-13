@@ -5,8 +5,10 @@ This metric calculates classification accuracy, precision, recall, and F1 score
 for text classification tasks.
 """
 
+from typing import Any, Dict, List
+
 import numpy as np
-from typing import Dict, Any, List
+
 from core import BaseMetric, OutputType
 
 
@@ -181,7 +183,7 @@ class AccuracyMetric(BaseMetric):
                         return False
                 elif not isinstance(pred, (int, float)):
                     return False
-        except:
+        except Exception:
             return False
 
         return True

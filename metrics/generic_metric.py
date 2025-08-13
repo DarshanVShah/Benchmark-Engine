@@ -5,8 +5,10 @@ This metric automatically detects the task type and applies appropriate evaluati
 metrics without requiring custom metric files for each dataset.
 """
 
+from typing import Any, Dict, List
+
 import numpy as np
-from typing import Dict, Any, List
+
 from core import BaseMetric
 
 

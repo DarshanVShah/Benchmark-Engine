@@ -6,16 +6,17 @@ Users cannot add their own datasets - they must use the provided standard datase
 """
 
 import os
-import requests
-import tarfile
-import zipfile
+
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Any
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+import requests
 
 
 class TaskType(Enum):
     """Standard task types supported by the framework."""
+
     EMOTION_CLASSIFICATION = "emotion_classification"
     SENTIMENT_ANALYSIS = "sentiment_analysis"
     TEXT_CLASSIFICATION = "text_classification"
@@ -26,6 +27,7 @@ class TaskType(Enum):
 @dataclass
 class DatasetConfig:
     """Configuration for a standard benchmark dataset."""
+
     name: str
     path: str
     task_type: TaskType
@@ -42,16 +44,16 @@ class DatasetConfig:
 class DatasetRegistry:
     """
     Registry of standard benchmark datasets.
-    
+
     This registry provides access to curated datasets for testing models.
     Users cannot add their own datasets - they must use the provided standard datasets.
     """
-    
+
     def __init__(self):
         """Initialize the registry with standard datasets."""
         self._datasets: Dict[TaskType, List[DatasetConfig]] = {}
         self._initialize_registry()
-    
+
     def _initialize_registry(self):
         """Initialize with standard benchmark datasets."""
         # Emotion Classification Datasets
@@ -63,14 +65,25 @@ class DatasetRegistry:
                 config={
                     "file_format": "tsv",
                     "text_column": "Tweet",
-                    "label_columns": ["anger", "anticipation", "disgust", "fear", "joy", "love", 
-                                     "optimism", "pessimism", "sadness", "surprise", "trust"],
+                    "label_columns": [
+                        "anger",
+                        "anticipation",
+                        "disgust",
+                        "fear",
+                        "joy",
+                        "love",
+                        "optimism",
+                        "pessimism",
+                        "sadness",
+                        "surprise",
+                        "trust",
+                    ],
                     "task_type": "multi-label",
-                    "max_length": 512
+                    "max_length": 512,
                 },
                 description="Multi-label emotion detection dataset with 11 emotions",
                 expected_accuracy_range=(0.60, 0.85),
-                is_remote=False
+                is_remote=False,
             ),
             DatasetConfig(
                 name="GoEmotions",
@@ -84,19 +97,15 @@ class DatasetRegistry:
                     "max_length": 512,
                     "delimiter": "\t",
                     "skip_header": False,
-                    "label_mapping": {
-                        "0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9,
-                        "10": 10, "11": 11, "12": 12, "13": 13, "14": 14, "15": 15, "16": 16, "17": 17,
-                        "18": 18, "19": 19, "20": 20, "21": 21, "22": 22, "23": 23, "24": 24, "25": 25, "26": 26
-                    }
+                    "label_mapping": {str(v): v for v in range(0, 27)},
                 },
                 description="Large-scale emotion dataset with 27 emotions from Reddit (single-label format)",
                 expected_accuracy_range=(0.50, 0.75),
                 is_remote=True,
-                download_url="https://raw.githubusercontent.com/google-research/google-research/master/goemotions/data/test.tsv"
-            )
+                download_url="https://raw.githubusercontent.com/google-research/google-research/master/goemotions/data/test.tsv",
+            ),
         ]
-        
+
         # Sentiment Analysis Datasets
         self._datasets[TaskType.SENTIMENT_ANALYSIS] = [
             DatasetConfig(
@@ -108,14 +117,14 @@ class DatasetRegistry:
                     "text_column": "text",
                     "label_columns": ["sentiment"],
                     "task_type": "single-label",
-                    "max_length": 512
+                    "max_length": 512,
                 },
                 description="IMDB movie review sentiment analysis dataset",
                 expected_accuracy_range=(0.80, 0.95),
-                is_remote=False
+                is_remote=False,
             )
         ]
-        
+
         # Text Classification Datasets
         self._datasets[TaskType.TEXT_CLASSIFICATION] = [
             DatasetConfig(
@@ -127,22 +136,22 @@ class DatasetRegistry:
                     "text_column": "text",
                     "label_columns": ["category"],
                     "task_type": "single-label",
-                    "max_length": 256
+                    "max_length": 256,
                 },
                 description="AG News topic classification dataset",
                 expected_accuracy_range=(0.85, 0.95),
-                is_remote=False
+                is_remote=False,
             )
         ]
-    
+
     def get_task_types(self) -> List[TaskType]:
         """Get all available task types."""
         return list(self._datasets.keys())
-    
+
     def get_datasets_for_task(self, task_type: TaskType) -> List[DatasetConfig]:
         """Get all datasets for a specific task type."""
         return self._datasets.get(task_type, [])
-    
+
     def get_dataset_by_name(self, name: str) -> Optional[DatasetConfig]:
         """Get a specific dataset by name."""
         for datasets in self._datasets.values():
@@ -150,59 +159,61 @@ class DatasetRegistry:
                 if dataset.name == name:
                     return dataset
         return None
-    
+
     def ensure_dataset_available(self, dataset_config: DatasetConfig) -> bool:
         """
         Ensure a dataset is available locally.
-        
+
         For remote datasets, this will download them if needed.
         """
         if not dataset_config.is_remote:
             return os.path.exists(dataset_config.path)
-        
+
         # Handle remote dataset download
         if dataset_config.download_url:
             return self._download_dataset(dataset_config)
-        
+
         return False
-    
+
     def _download_dataset(self, dataset_config: DatasetConfig) -> bool:
         """Download a remote dataset."""
         try:
-            print(f"Downloading dataset {dataset_config.name} from {dataset_config.download_url}")
-            
+            print(
+                f"Downloading dataset {dataset_config.name} from {dataset_config.download_url}"
+            )
+
             # Create cache directory
             os.makedirs(dataset_config.local_cache_dir, exist_ok=True)
-            
+
             # Download the file
             response = requests.get(dataset_config.download_url, stream=True)
             response.raise_for_status()
-            
+
             # Save to local path
-            with open(dataset_config.path, 'wb') as f:
+            with open(dataset_config.path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
-            
+
             print(f"Dataset {dataset_config.name} downloaded successfully")
             return True
-            
+
         except Exception as e:
             print(f"Failed to download dataset {dataset_config.name}: {e}")
             return False
-    
+
     def list_available_datasets(self) -> Dict[TaskType, List[str]]:
         """List all available datasets by task type."""
         return {
             task_type: [dataset.name for dataset in datasets]
             for task_type, datasets in self._datasets.items()
         }
-    
+
     def get_dataset_info(self, dataset_name: str) -> Optional[Dict[str, Any]]:
         """Get detailed information about a dataset."""
         dataset = self.get_dataset_by_name(dataset_name)
         if not dataset:
             return None
-        
+
         return {
             "name": dataset.name,
             "description": dataset.description,
@@ -210,5 +221,5 @@ class DatasetRegistry:
             "path": dataset.path,
             "config": dataset.config,
             "expected_accuracy_range": dataset.expected_accuracy_range,
-            "is_remote": dataset.is_remote
+            "is_remote": dataset.is_remote,
         }

@@ -5,8 +5,10 @@ This module provides a clean template pattern for metrics.
 Users explicitly select the metric type - no auto-detection.
 """
 
+from typing import Any, Dict, List
+
 import numpy as np
-from typing import Dict, Any, List
+
 from core import BaseMetric, OutputType
 
 
