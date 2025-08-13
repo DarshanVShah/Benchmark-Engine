@@ -54,6 +54,7 @@ class HuggingFaceAdapter(BaseModelAdapter):
         self.device = "cpu"
         self.task_type = "text-classification"  # Default task
         self.is_multi_label = False  # Track if this is a multi-label task
+        self._load_error = None  # Track loading errors
 
     @property
     def input_type(self) -> DataType:
@@ -76,8 +77,6 @@ class HuggingFaceAdapter(BaseModelAdapter):
             True if loaded successfully
         """
         try:
-            print(f"Loading HuggingFace model from {model_path}...")
-
             # Load tokenizer first
             self.tokenizer = AutoTokenizer.from_pretrained(model_path)
 
@@ -104,15 +103,14 @@ class HuggingFaceAdapter(BaseModelAdapter):
             # Move to device
             self.model.to(self.device)
             self.model.eval()
-
-            print(f"  Model loaded successfully")
-            print(f"  Model type: {self.model_type}")
-            print(f"  Device: {self.device}")
+            
+            # Clear any previous errors
+            self._load_error = None
 
             return True
 
         except Exception as e:
-            print(f"  Failed to load model: {e}")
+            self._load_error = str(e)
             return False
 
     def configure(self, config: Dict[str, Any]) -> bool:
@@ -156,11 +154,9 @@ class HuggingFaceAdapter(BaseModelAdapter):
             elif "task_type" in config and config["task_type"] == "multi-label":
                 self.is_multi_label = True
 
-            print(f"  Model configured successfully")
             return True
 
         except Exception as e:
-            print(f"  Failed to configure model: {e}")
             return False
 
     def preprocess(self, raw_input: Any) -> Any:
@@ -186,11 +182,10 @@ class HuggingFaceAdapter(BaseModelAdapter):
             elif isinstance(raw_input, str):
                 text = raw_input
             else:
-                print(f"Warning: Expected string or dict input, got {type(raw_input)}")
+                # Convert non-string input to string
                 text = str(raw_input)
 
             if not text:
-                print("Warning: Empty text input")
                 return None
 
             # Tokenize the text
@@ -208,7 +203,6 @@ class HuggingFaceAdapter(BaseModelAdapter):
             return inputs
 
         except Exception as e:
-            print(f"Error in preprocessing: {e}")
             return None
 
     def run(self, preprocessed_input: Any) -> Any:
@@ -227,7 +221,6 @@ class HuggingFaceAdapter(BaseModelAdapter):
                 return outputs.logits
 
         except Exception as e:
-            print(f"Error in model inference: {e}")
             return None
 
     def postprocess(self, model_output: Any) -> Any:
@@ -256,7 +249,6 @@ class HuggingFaceAdapter(BaseModelAdapter):
                 return predicted_class_ids.cpu().numpy().tolist()
 
         except Exception as e:
-            print(f"Error in postprocessing: {e}")
             return None
 
     def get_model_info(self) -> Dict[str, Any]:
@@ -269,8 +261,13 @@ class HuggingFaceAdapter(BaseModelAdapter):
             "is_multi_label": self.is_multi_label,
             "output_type": self.output_type.value,
             "config": self.config,
+            "load_error": self._load_error,
         }
 
     def get_model_type(self) -> ModelType:
         """Return the type of model."""
         return ModelType.HUGGINGFACE
+
+    def get_load_error(self) -> Optional[str]:
+        """Return the last loading error if any."""
+        return self._load_error
