@@ -41,6 +41,7 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
         self.max_length = 512
         self.tokenizer = None
         self.is_multi_label = False  # Track if this is a multi-label task
+        self._load_error = None  # Track loading errors
 
     @property
     def input_type(self) -> DataType:
@@ -59,14 +60,12 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
     def load(self, model_path: str) -> bool:
         """Load TensorFlow Lite model from file."""
         if not TENSORFLOW_AVAILABLE:
-            print("Error: TensorFlow is not installed. Please install tensorflow: pip install tensorflow")
+            self._load_error = "TensorFlow is not installed. Please install tensorflow: pip install tensorflow"
             return False
             
         try:
-            print(f"Loading TensorFlow Lite model from {model_path}")
-
             if not os.path.exists(model_path):
-                print(f"  Error: Model file not found: {model_path}")
+                self._load_error = f"Model file not found: {model_path}"
                 return False
 
             # Load the TFLite model
@@ -83,53 +82,43 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
 
             self.model_path = model_path
             self.model_loaded = True
-
-            print(f"  TensorFlow Lite model loaded: {model_path}")
-            print(f"  Input shape: {self.input_shape}")
-            print(f"  Output shape: {self.output_shape}")
-            print(f"  Input details: {self.input_details}")
-            print(f"  Output details: {self.output_details}")
+            
+            # Clear any previous errors
+            self._load_error = None
 
             return True
 
         except Exception as e:
-            print(f"  Error loading TensorFlow Lite model: {e}")
+            self._load_error = str(e)
             return False
 
     def configure(self, config: Dict[str, Any]) -> bool:
         """Configure model parameters."""
         try:
-            print(f"Configuring TensorFlow Lite model with: {config}")
-
             # Set task type
             if "task_type" in config:
                 self.task_type = config["task_type"]
-                print(f"  Task type set to: {self.task_type}")
 
             # Set multi-label flag
             if "is_multi_label" in config:
                 self.is_multi_label = config["is_multi_label"]
-                print(f"  Multi-label set to: {self.is_multi_label}")
+            elif "task_type" in config and config["task_type"] == "multi-label":
+                self.is_multi_label = True
 
             # Set input/output types
             if "input_type" in config:
                 self._input_type = DataType(config["input_type"])
-                print(f"  Input type set to: {self._input_type.value}")
 
             if "output_type" in config:
                 self._output_type = OutputType(config["output_type"])
-                print(f"  Output type set to: {self._output_type.value}")
 
             # Set max length for text models
             if "max_length" in config:
                 self.max_length = config["max_length"]
-                print(f"  Max length set to: {self.max_length}")
 
-            print(f"  TensorFlow Lite model configured")
             return True
 
         except Exception as e:
-            print(f"  Error configuring TensorFlow Lite model: {e}")
             return False
 
     def preprocess(self, raw_input: Any) -> Any:
@@ -155,7 +144,6 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                 return self._preprocess_tensor(raw_input)
 
         except Exception as e:
-            print(f"Error in preprocessing: {e}")
             return None
 
     def _preprocess_text(self, raw_input: Union[str, Dict[str, Any]]) -> np.ndarray:
@@ -175,52 +163,74 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             else:
                 text = str(raw_input)
 
-            # Get the actual input shapes from the model
-            batch_size = 1
-            
-            # Create input tensors that match the model's expected format
-            # Based on the model input details: [attention_mask, input_ids, token_type_ids]
-            
-            # attention_mask: Use actual shape from model
-            attention_mask_shape = self.input_details[0]["shape"]
-            attention_mask = np.ones(attention_mask_shape, dtype=np.int32)
-            
-            # input_ids: Use actual shape from model
-            input_ids_shape = self.input_details[1]["shape"]
-            input_ids = np.zeros(input_ids_shape, dtype=np.int32)
-            
-            # For very short sequences (like [1, 1]), we need to handle differently
-            if len(input_ids_shape) == 2 and input_ids_shape[1] == 1:
-                # Model expects single token - use first character as token ID
-                if text:
-                    input_ids[0, 0] = ord(text[0]) % 1000  # Simple hash
+            # Handle different input tensor configurations
+            if len(self.input_details) == 1:
+                # Single input tensor - create a simple text representation
+                input_shape = self.input_details[0]["shape"]
+                if len(input_shape) == 2:  # [batch, sequence_length]
+                    max_length = input_shape[1]
+                    # Create a simple tokenization (character-based)
+                    tokens = [ord(c) % 1000 for c in text[:max_length]]
+                    # Pad or truncate to match expected shape
+                    if len(tokens) < max_length:
+                        tokens.extend([0] * (max_length - len(tokens)))
+                    elif len(tokens) > max_length:
+                        tokens = tokens[:max_length]
+                    
+                    return np.array([tokens], dtype=np.int32)
                 else:
-                    input_ids[0, 0] = 0
-            else:
-                # Model expects longer sequences - truncate/pad to match
-                max_length = input_ids_shape[1] if len(input_ids_shape) > 1 else 1
-                if len(text) > max_length:
-                    text = text[:max_length]
+                    # Handle other shapes by flattening
+                    return np.zeros(input_shape, dtype=np.int32)
+            
+            elif len(self.input_details) == 3:
+                # Multiple input tensors (attention_mask, input_ids, token_type_ids)
+                # attention_mask: Use actual shape from model
+                attention_mask_shape = self.input_details[0]["shape"]
+                attention_mask = np.ones(attention_mask_shape, dtype=np.int32)
                 
-                for i, char in enumerate(text):
-                    if i < max_length:
-                        input_ids[0, i] = ord(char) % 1000
+                # input_ids: Use actual shape from model
+                input_ids_shape = self.input_details[1]["shape"]
+                input_ids = np.zeros(input_ids_shape, dtype=np.int32)
+                
+                # For very short sequences (like [1, 1]), we need to handle differently
+                if len(input_ids_shape) == 2 and input_ids_shape[1] == 1:
+                    # Model expects single token - use first character as token ID
+                    if text:
+                        input_ids[0, 0] = ord(text[0]) % 1000  # Simple hash
+                    else:
+                        input_ids[0, 0] = 0
+                else:
+                    # Model expects longer sequences - truncate/pad to match
+                    max_length = input_ids_shape[1] if len(input_ids_shape) > 1 else 1
+                    if len(text) > max_length:
+                        text = text[:max_length]
+                    
+                    for i, char in enumerate(text):
+                        if i < max_length:
+                            input_ids[0, i] = ord(char) % 1000
+                
+                # token_type_ids: Use actual shape from model
+                token_type_ids_shape = self.input_details[2]["shape"]
+                token_type_ids = np.zeros(token_type_ids_shape, dtype=np.int32)
+                
+                # Return as a list of tensors matching the model's input format
+                return [attention_mask, input_ids, token_type_ids]
             
-            # token_type_ids: Use actual shape from model
-            token_type_ids_shape = self.input_details[2]["shape"]
-            token_type_ids = np.zeros(token_type_ids_shape, dtype=np.int32)
-            
-            # Return as a list of tensors matching the model's input format
-            return [attention_mask, input_ids, token_type_ids]
+            else:
+                # Fallback: create dummy input matching the first input tensor
+                input_shape = self.input_details[0]["shape"]
+                return np.zeros(input_shape, dtype=np.int32)
 
         except Exception as e:
-            print(f"Error in text preprocessing: {e}")
             # Return dummy tensors with correct shapes from model
-            return [
-                np.ones(self.input_details[0]["shape"], dtype=np.int32),  # attention_mask
-                np.zeros(self.input_details[1]["shape"], dtype=np.int32),  # input_ids
-                np.zeros(self.input_details[2]["shape"], dtype=np.int32)   # token_type_ids
-            ]
+            if len(self.input_details) == 3:
+                return [
+                    np.ones(self.input_details[0]["shape"], dtype=np.int32),  # attention_mask
+                    np.zeros(self.input_details[1]["shape"], dtype=np.int32),  # input_ids
+                    np.zeros(self.input_details[2]["shape"], dtype=np.int32)   # token_type_ids
+                ]
+            else:
+                return np.zeros(self.input_details[0]["shape"], dtype=np.int32)
 
     def _preprocess_image(self, raw_input: Union[str, Dict[str, Any]]) -> np.ndarray:
         """Preprocess image input for TFLite model."""
@@ -265,11 +275,10 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
 
                 return normalized
             except ImportError:
-                print("Warning: OpenCV not available, using dummy image data")
+                # OpenCV not available, using dummy image data
                 return np.random.rand(*self.input_shape).astype(np.float32)
 
         except Exception as e:
-            print(f"Error in image preprocessing: {e}")
             return np.zeros(self.input_shape, dtype=np.float32)
 
     def _preprocess_tensor(self, raw_input: Any) -> np.ndarray:
@@ -297,7 +306,6 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             return tensor.astype(np.float32)
 
         except Exception as e:
-            print(f"Error in tensor preprocessing: {e}")
             return np.zeros(self.input_shape, dtype=np.float32)
 
     def run(self, preprocessed_input: Union[np.ndarray, List[np.ndarray]]) -> np.ndarray:
@@ -312,7 +320,6 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
         """
         try:
             if not self.model_loaded:
-                print("Error: Model not loaded")
                 return None
 
             # Handle multiple input tensors
@@ -322,7 +329,6 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                     if i < len(self.input_details):
                         self.interpreter.set_tensor(self.input_details[i]["index"], tensor)
                     else:
-                        print(f"Warning: More input tensors provided than model expects")
                         break
             else:
                 # Single input tensor
@@ -336,7 +342,6 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             return output_tensor
 
         except Exception as e:
-            print(f"Error in model inference: {e}")
             return None
 
     def postprocess(self, model_output: np.ndarray) -> Any:
@@ -372,7 +377,6 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
                 return model_output.tolist()
 
         except Exception as e:
-            print(f"Error in postprocessing: {e}")
             return None
 
     def get_model_info(self) -> Dict[str, Any]:
@@ -387,6 +391,7 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             "input_type": self.input_type.value,
             "output_type": self.output_type.value,
             "task_type": self.task_type,
+            "load_error": self._load_error,
         }
 
         return info
@@ -398,3 +403,7 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
     def validate_compatibility(self, dataset: "BaseDataset") -> bool:
         """Validate that this model is compatible with the given dataset."""
         return dataset.output_type == self.input_type
+
+    def get_load_error(self) -> Optional[str]:
+        """Return the last loading error if any."""
+        return self._load_error

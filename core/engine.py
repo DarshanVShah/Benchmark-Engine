@@ -348,7 +348,6 @@ class BenchmarkEngine:
     def export_results(self, filename: Optional[str] = None) -> Optional[str]:
         """Export the last benchmark results to JSON."""
         if not self.last_results:
-            print("No results to export. Run benchmark first.")
             return None
             
         if not filename:
@@ -377,18 +376,11 @@ class BenchmarkEngine:
             print("Error: No model adapter loaded")
             return None
             
-        print("Starting Universal Emotion Benchmark")
-
-        
         # Step 1: Select random emotion datasets
         emotion_datasets = self._select_random_emotion_datasets()
-        print(f"Selected {len(emotion_datasets)} random emotion datasets for testing")
         
         # Step 2: Create standardized label mapping and input shapes
         standard_config = self._create_standardized_config(emotion_datasets)
-        print(f"Created standardized config: {standard_config['num_classes']} emotion classes")
-        print(f"   Input shape: {standard_config['input_shape']}")
-        print(f"   Label mapping: {len(standard_config['label_mapping'])} standardized labels")
         
         # Step 3: Test user adapter against each dataset
         results = {}
@@ -396,10 +388,6 @@ class BenchmarkEngine:
         total_datasets = len(emotion_datasets)
         
         for i, dataset_info in enumerate(emotion_datasets):
-            print(f"\nTesting on Dataset {i+1}/{total_datasets}")
-            print(f"   Type: {dataset_info['type']} (unknown to you)")
-            print(f"   Samples: {dataset_info['num_samples']}")
-            
             # Load dataset with standardized config
             if self._load_dataset_for_universal_test(dataset_info, standard_config):
                 # Run benchmark
@@ -408,33 +396,19 @@ class BenchmarkEngine:
                     results[f"dataset_{i+1}"] = dataset_results
                     accuracy = dataset_results.get('accuracy', 0)
                     total_accuracy += accuracy
-                    print(f"   Accuracy: {accuracy:.2%}")
                 else:
-                    print(f"   Benchmark failed")
+                    # Benchmark failed
+                    pass
             else:
-                print(f"   Failed to load dataset")
+                # Failed to load dataset
+                pass
         
         # Step 4: Calculate universal metrics
         if results:
             avg_accuracy = total_accuracy / total_datasets
-            print(f"\nUniversal Benchmark Results")
-            print(f"Average Accuracy: {avg_accuracy:.2%}")
-            print(f"Datasets Tested: {total_datasets}")
-            print(f"Successful Runs: {len(results)}")
-            
-            # Performance assessment
-            if avg_accuracy >= 0.8:
-                print("Excellent universal performance!")
-            elif avg_accuracy >= 0.6:
-                print("Good universal performance!")
-            elif avg_accuracy >= 0.4:
-                print("Acceptable universal performance")
-            else:
-                print("Room for improvement")
             
             # Export results
             export_file = self.export_results("universal_emotion_benchmark.json")
-            print(f"\nResults saved to: {export_file}")
             
             return {
                 "universal_accuracy": avg_accuracy,
@@ -444,7 +418,6 @@ class BenchmarkEngine:
                 "standard_config": standard_config
             }
         else:
-            print("Universal benchmark failed - no datasets completed successfully")
             return None
     
     def _select_random_emotion_datasets(self) -> List[Dict[str, Any]]:
@@ -457,9 +430,10 @@ class BenchmarkEngine:
                 "num_classes": 27,
                 "num_samples": 1000,  # Estimated sample count
                 "format": "tsv",
-                "text_column": "text",
-                "label_columns": ["label"],
-                "skip_header": False
+                "text_column": 0,  # First column (text)
+                "label_column": 1,  # Second column (label)
+                "skip_header": False,
+                "delimiter": "\t"
             },
             {
                 "name": "2018-Emotion",
@@ -468,48 +442,16 @@ class BenchmarkEngine:
                 "num_classes": 11,
                 "num_samples": 3259,  # Actual sample count
                 "format": "tsv",
-                "text_column": "Tweet",
-                "label_columns": ["anger", "anticipation", "disgust", "fear", "joy", "love", "optimism", "pessimism", "sadness", "surprise", "trust"],
-                "skip_header": True
-            },
-            {
-                "name": "ISEAR",
-                "type": "single-label",
-                "path": "benchmark_datasets/localTestSets/isear_test.txt", 
-                "num_classes": 7,
-                "num_samples": 500,  # Estimated sample count
-                "format": "tsv",
-                "text_column": "text",
-                "label_columns": ["emotion"],
-                "skip_header": False
-            },
-            {
-                "name": "Emotion-Stimulus",
-                "type": "single-label",
-                "path": "benchmark_datasets/localTestSets/emotion_stimulus_test.txt",
-                "num_classes": 6,
-                "num_samples": 300,  # Estimated sample count
-                "format": "tsv", 
-                "text_column": "text",
-                "label_columns": ["emotion"],
-                "skip_header": False
-            },
-            {
-                "name": "Affective-Text",
-                "type": "regression",
-                "path": "benchmark_datasets/localTestSets/affective_text_test.txt",
-                "num_classes": 3,
-                "num_samples": 200,  # Estimated sample count
-                "format": "tsv",
-                "text_column": "text", 
-                "label_columns": ["valence", "arousal", "dominance"],
-                "skip_header": False
+                "text_column": 1,  # Second column (Tweet)
+                "label_columns": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],  # Emotion columns
+                "skip_header": True,
+                "delimiter": "\t"
             }
         ]
         
-        # Randomly select 3-5 datasets
+        # Randomly select 2-3 datasets (since we only have 2 working ones)
         import random
-        num_to_select = random.randint(3, min(5, len(available_datasets)))
+        num_to_select = random.randint(2, min(3, len(available_datasets)))
         selected = random.sample(available_datasets, num_to_select)
         
         return selected
@@ -544,24 +486,23 @@ class BenchmarkEngine:
         try:
             # Check if dataset file exists
             if not os.path.exists(dataset_info["path"]):
-                print(f"   Dataset file not found: {dataset_info['path']}")
                 return False
             
             # Load dataset with template dataset
             dataset_config = {
                 "file_format": dataset_info["format"],
                 "text_column": dataset_info["text_column"],
-                "label_columns": dataset_info["label_columns"],
+                "label_column": dataset_info.get("label_column"),
+                "label_columns": dataset_info.get("label_columns"),
                 "task_type": dataset_info["type"],
                 "max_length": standard_config["max_length"],
-                "delimiter": "\t",
+                "delimiter": dataset_info.get("delimiter", "\t"),
                 "skip_header": dataset_info.get("skip_header", False)
             }
             
             return self.load_dataset("template", dataset_info["path"], dataset_config)
             
         except Exception as e:
-            print(f"   Error loading dataset: {e}")
             return False
     
     def _run_single_dataset_benchmark(self, num_samples: int) -> Dict[str, Any]:
@@ -586,5 +527,4 @@ class BenchmarkEngine:
                 }
             return None
         except Exception as e:
-            print(f"   Error running benchmark: {e}")
             return None

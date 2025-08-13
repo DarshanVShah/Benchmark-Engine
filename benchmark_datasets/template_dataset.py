@@ -54,13 +54,10 @@ class TemplateDataset(BaseDataset):
                 - max_length: Optional max text length
         """
         try:
-            print(f"Loading template dataset: {dataset_path}")
-
             # Validate configuration
             required_keys = ["file_format", "text_column", "label_columns", "task_type"]
             for key in required_keys:
                 if key not in config:
-                    print(f"  Error: Missing required config key: {key}")
                     return False
 
             # Store configuration
@@ -73,7 +70,6 @@ class TemplateDataset(BaseDataset):
 
             # Check if file exists
             if not os.path.exists(dataset_path):
-                print(f"  Error: Dataset file not found: {dataset_path}")
                 return False
 
             # Load data based on format
@@ -84,30 +80,106 @@ class TemplateDataset(BaseDataset):
             elif self.file_format == "json":
                 self._load_json(dataset_path)
             else:
-                print(f"  Error: Unsupported file format: {self.file_format}")
                 return False
 
             self.dataset_path = dataset_path
             self.dataset_loaded = True
 
-            print(f"  Template dataset loaded: {dataset_path}")
-            print(f"  Format: {self.file_format}")
-            print(f"  Samples: {len(self.data)}")
-            print(f"  Task: {self.task_type}")
-            print(f"  Text column: {self.text_column}")
-            print(f"  Label columns: {self.label_columns}")
-
             return True
 
         except Exception as e:
-            print(f"  Error loading template dataset: {e}")
             return False
 
     def _load_csv(self, file_path: str):
-        """Load CSV file."""
+        """Load CSV file with flexible column handling."""
+        self.data = []
+        
         with open(file_path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            self.data = list(reader)
+            reader = csv.reader(f)
+            rows = list(reader)
+            
+            if not rows:
+                return
+            
+            # Handle header row
+            if hasattr(self, 'skip_header') and self.skip_header:
+                headers = rows[0]
+                rows = rows[1:]  # Skip header
+                
+                # Find column indices - handle both column names and indices
+                text_col_idx = None
+                label_col_indices = {}
+                
+                # Check if text_column is a name or index
+                if isinstance(self.text_column, str):
+                    # Column name
+                    for i, header in enumerate(headers):
+                        if header == self.text_column:
+                            text_col_idx = i
+                            break
+                elif isinstance(self.text_column, int):
+                    # Column index
+                    text_col_idx = self.text_column
+                
+                # Check if label_columns contains names or indices
+                if self.label_columns:
+                    if isinstance(self.label_columns[0], str):
+                        # Column names
+                        for i, header in enumerate(headers):
+                            if header in self.label_columns:
+                                label_col_indices[header] = i
+                    elif isinstance(self.label_columns[0], int):
+                        # Column indices
+                        for col_idx in self.label_columns:
+                            if col_idx < len(headers):
+                                label_col_indices[f"label_{col_idx}"] = col_idx
+            else:
+                # No header - assume first column is text, rest are labels
+                text_col_idx = 0
+                if isinstance(self.text_column, int):
+                    text_col_idx = self.text_column
+                
+                # Handle label columns
+                if self.label_columns:
+                    if isinstance(self.label_columns[0], int):
+                        label_col_indices = {f"label_{col}": col for col in self.label_columns}
+                    else:
+                        label_col_indices = {col: i+1 for i, col in enumerate(self.label_columns)}
+                else:
+                    # Default: assume second column is label
+                    label_col_indices = {"label": 1}
+            
+            # Process data rows
+            for row in rows:
+                if len(row) < 2:
+                    continue
+                
+                # Extract text
+                if text_col_idx < len(row):
+                    text = row[text_col_idx].strip()
+                    if not text:
+                        continue
+                else:
+                    continue
+                
+                # Create sample with proper structure
+                sample = {"text": text}  # Always use "text" as key for compatibility
+                
+                # Extract labels
+                for label_col, col_idx in label_col_indices.items():
+                    if col_idx < len(row):
+                        label_value = row[col_idx].strip()
+                        # Convert to int for binary labels (0/1)
+                        try:
+                            sample[label_col] = int(label_value)
+                        except ValueError:
+                            sample[label_col] = 0  # Default to 0 if conversion fails
+                    else:
+                        sample[label_col] = 0  # Default to 0 if column missing
+                
+                self.data.append(sample)
+        
+        # Dataset loaded successfully
 
     def _load_tsv(self, file_path: str):
         """Load TSV file with flexible column handling."""
@@ -122,25 +194,51 @@ class TemplateDataset(BaseDataset):
                 headers = header_line.split('\t')
                 lines = lines[1:]  # Skip header
                 
-                # Find column indices
+                # Find column indices - handle both column names and indices
                 text_col_idx = None
                 label_col_indices = {}
                 
-                for i, header in enumerate(headers):
-                    if header == self.text_column:
-                        text_col_idx = i
-                    elif header in self.label_columns:
-                        label_col_indices[header] = i
+                # Check if text_column is a name or index
+                if isinstance(self.text_column, str):
+                    # Column name
+                    for i, header in enumerate(headers):
+                        if header == self.text_column:
+                            text_col_idx = i
+                            break
+                elif isinstance(self.text_column, int):
+                    # Column index
+                    text_col_idx = self.text_column
+                
+                # Check if label_columns contains names or indices
+                if self.label_columns:
+                    if isinstance(self.label_columns[0], str):
+                        # Column names
+                        for i, header in enumerate(headers):
+                            if header in self.label_columns:
+                                label_col_indices[header] = i
+                    elif isinstance(self.label_columns[0], int):
+                        # Column indices
+                        for col_idx in self.label_columns:
+                            if col_idx < len(headers):
+                                label_col_indices[f"label_{col_idx}"] = col_idx
                 
                 if text_col_idx is None:
-                    print(f"  Error: Text column '{self.text_column}' not found in headers: {headers}")
                     return
-                
-                print(f"  Found columns: text at {text_col_idx}, labels at {label_col_indices}")
             else:
                 # No header - assume first column is text, rest are labels
                 text_col_idx = 0
-                label_col_indices = {col: i+1 for i, col in enumerate(self.label_columns)}
+                if isinstance(self.text_column, int):
+                    text_col_idx = self.text_column
+                
+                # Handle label columns
+                if self.label_columns:
+                    if isinstance(self.label_columns[0], int):
+                        label_col_indices = {f"label_{col}": col for col in self.label_columns}
+                    else:
+                        label_col_indices = {col: i+1 for i, col in enumerate(self.label_columns)}
+                else:
+                    # Default: assume second column is label
+                    label_col_indices = {"label": 1}
             
             # Process data lines
             for line_num, line in enumerate(lines):
@@ -162,7 +260,7 @@ class TemplateDataset(BaseDataset):
                     continue
                 
                 # Create sample with proper structure
-                sample = {self.text_column: text}
+                sample = {"text": text}  # Always use "text" as key for compatibility
                 
                 # Extract labels
                 for label_col, col_idx in label_col_indices.items():
@@ -178,15 +276,7 @@ class TemplateDataset(BaseDataset):
                 
                 self.data.append(sample)
         
-        print(f"  Template dataset loaded: {file_path}")
-        print(f"  Format: tsv")
-        print(f"  Samples: {len(self.data)}")
-        print(f"  Task: {self.task_type}")
-        print(f"  Text column: {self.text_column}")
-        print(f"  Label columns: {self.label_columns}")
-        
-        if self.data:
-            print(f"  Sample data: {self.data[0]}")
+        # Dataset loaded successfully
 
     def _load_json(self, file_path: str):
         """Load JSON file."""
@@ -222,10 +312,10 @@ class TemplateDataset(BaseDataset):
         data_subset = self.data[:num_samples] if num_samples else self.data
 
         for item in data_subset:
-            if self.text_column in item:
-                text = item[self.text_column]
-                if isinstance(text, str) and len(text) > 0:
-                    samples.append({"text": text[: self.max_length]})
+            # Always use "text" key since we standardize the data structure
+            text = item.get("text", "")
+            if isinstance(text, str) and len(text) > 0:
+                samples.append({"text": text[: self.max_length]})
 
         return samples
 
@@ -240,8 +330,8 @@ class TemplateDataset(BaseDataset):
         data_subset = self.data[:num_samples] if num_samples else self.data
 
         for item in data_subset:
-            # Extract text
-            text = item.get(self.text_column, "")
+            # Extract text - always use "text" key since we standardize the data structure
+            text = item.get("text", "")
             if not text or not isinstance(text, str):
                 continue
 
