@@ -198,8 +198,7 @@ def main():
     print("\n" + "=" * 50)
     print("Demonstration complete!")
     print(f"Total standardized emotions available: {len(standardized_emotions.get_all_emotions())}")
-    print(f"Core emotions: {len(standardized_emotions.get_core_emotions())}")
-    print(f"Extended emotions: {len(standardized_emotions.get_extended_emotions())}")
+    print(f"Standardized emotion set: {', '.join(standardized_emotions.get_all_emotions())}")
 
 
 if __name__ == "__main__":

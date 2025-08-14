@@ -20,59 +20,25 @@ class StandardizedEmotions:
     emotion classification schemes used by different models and datasets.
     """
     
-    # Core emotion categories (primary emotions)
-    CORE_EMOTIONS = [
-        "anger",      # 0
-        "disgust",    # 1
-        "fear",       # 2
-        "happiness",  # 3
-        "sadness",    # 4
-        "surprise",   # 5
-        "neutral"     # 6
+    # Core emotion categories (primary emotions) - 8 emotions total
+    ALL_EMOTIONS = [
+        "anger",      # 0 - Strong negative emotion, often with aggression
+        "disgust",    # 1 - Aversion or repulsion
+        "fear",       # 2 - Anxiety or apprehension
+        "happiness",  # 3 - Positive emotional state, contentment
+        "sadness",    # 4 - Negative emotional state, sorrow
+        "surprise",   # 5 - Sudden reaction to unexpected events
+        "love",       # 6 - Affection and attachment
+        "neutral"     # 7 - Absence of strong emotion
     ]
-    
-    # Extended emotion categories (secondary emotions)
-    EXTENDED_EMOTIONS = [
-        "love",           # 7
-        "joy",            # 8
-        "trust",          # 9
-        "anticipation",   # 10
-        "optimism",       # 11
-        "pessimism",      # 12
-        "contempt",       # 13
-        "embarrassment",  # 14
-        "pride",          # 15
-        "shame",          # 16
-        "guilt",          # 17
-        "amusement",      # 18
-        "awe",            # 19
-        "contentment",    # 20
-        "excitement",     # 21
-        "relief",         # 22
-        "satisfaction",   # 23
-        "anxiety",        # 24
-        "confusion",      # 25
-        "curiosity",      # 26
-        "gratitude",      # 27
-        "hope",           # 28
-        "inspiration",    # 29
-        "nostalgia",      # 30
-        "wonder"          # 31
-    ]
-    
-    # All standardized emotions
-    ALL_EMOTIONS = CORE_EMOTIONS + EXTENDED_EMOTIONS
     
     # Emotion category groupings for analysis
     EMOTION_CATEGORIES = {
-        "positive": ["happiness", "joy", "love", "trust", "optimism", "amusement", 
-                    "awe", "contentment", "excitement", "relief", "satisfaction", 
-                    "gratitude", "hope", "inspiration", "nostalgia", "wonder"],
-        "negative": ["anger", "disgust", "fear", "sadness", "pessimism", "contempt", 
-                    "embarrassment", "shame", "guilt", "anxiety"],
-        "neutral": ["neutral", "surprise", "anticipation", "confusion", "curiosity"],
-        "high_arousal": ["anger", "fear", "excitement", "anxiety", "surprise"],
-        "low_arousal": ["sadness", "contentment", "relief", "satisfaction", "nostalgia"]
+        "positive": ["happiness", "love"],
+        "negative": ["anger", "disgust", "fear", "sadness"],
+        "neutral": ["neutral", "surprise"],
+        "high_arousal": ["anger", "fear", "surprise"],
+        "low_arousal": ["sadness", "happiness", "love"]
     }
     
     def __init__(self):
@@ -86,69 +52,70 @@ class StandardizedEmotions:
     def _initialize_mappings(self):
         """Initialize mappings for different emotion classification schemes."""
         
-        # 2018-E-c-En dataset mapping (11 emotions)
+        # 2018-E-c-En dataset mapping (11 emotions) - mapped to our 8 standardized emotions
         self.mapping_2018_ec_en = {
-            "anger": "anger",
-            "anticipation": "anticipation", 
-            "disgust": "disgust",
-            "fear": "fear",
-            "joy": "joy",
-            "love": "love",
-            "optimism": "optimism",
-            "pessimism": "pessimism",
-            "sadness": "sadness",
-            "surprise": "surprise",
-            "trust": "trust"
+            "anger": "anger",           # anger -> anger
+            "anticipation": "neutral",  # anticipation -> neutral (uncertainty)
+            "disgust": "disgust",       # disgust -> disgust
+            "fear": "fear",             # fear -> fear
+            "joy": "happiness",         # joy -> happiness (positive feeling)
+            "love": "love",             # love -> love
+            "optimism": "happiness",    # optimism -> happiness (positive feeling)
+            "pessimism": "sadness",     # pessimism -> sadness (negative feeling)
+            "sadness": "sadness",       # sadness -> sadness
+            "surprise": "surprise",     # surprise -> surprise
+            "trust": "happiness"        # trust -> happiness (positive feeling)
         }
         
-        # GoEmotions dataset mapping (27 emotions)
+        # GoEmotions dataset mapping (28 emotions) - mapped to our 8 standardized emotions
         # Based on the GoEmotions paper: https://arxiv.org/abs/2005.00547
         self.mapping_goemotions = {
-            0: "admiration",      # Map to awe
-            1: "amusement",       # Map to amusement
-            2: "anger",           # Map to anger
-            3: "annoyance",       # Map to anger
-            4: "approval",        # Map to satisfaction
-            5: "caring",          # Map to love
-            6: "confusion",       # Map to confusion
-            7: "curiosity",       # Map to curiosity
-            8: "desire",          # Map to anticipation
-            9: "disappointment",  # Map to sadness
-            10: "disapproval",    # Map to contempt
-            11: "disgust",        # Map to disgust
-            12: "embarrassment",  # Map to embarrassment
-            13: "excitement",     # Map to excitement
-            14: "fear",           # Map to fear
-            15: "gratitude",      # Map to gratitude
-            16: "grief",          # Map to sadness
-            17: "joy",            # Map to joy
-            18: "love",           # Map to love
-            19: "nervousness",    # Map to anxiety
-            20: "optimism",       # Map to optimism
-            21: "pride",          # Map to pride
-            22: "realization",    # Map to surprise
-            23: "relief",         # Map to relief
-            24: "remorse",        # Map to guilt
-            25: "sadness",        # Map to sadness
-            26: "surprise",       # Map to surprise
-            27: "neutral"         # Map to neutral
+            0: "happiness",       # admiration -> happiness (positive feeling)
+            1: "happiness",       # amusement -> happiness (positive feeling)
+            2: "anger",           # anger -> anger
+            3: "anger",           # annoyance -> anger (similar negative emotion)
+            4: "happiness",       # approval -> happiness (positive feeling)
+            5: "love",            # caring -> love (affection)
+            6: "neutral",         # confusion -> neutral (uncertainty)
+            7: "neutral",         # curiosity -> neutral (interest)
+            8: "love",            # desire -> love (affection)
+            9: "sadness",         # disappointment -> sadness
+            10: "anger",          # disapproval -> anger (negative reaction)
+            11: "disgust",        # disgust -> disgust
+            12: "fear",           # embarrassment -> fear (anxiety)
+            13: "happiness",      # excitement -> happiness (positive feeling)
+            14: "fear",           # fear -> fear
+            15: "happiness",      # gratitude -> happiness (positive feeling)
+            16: "sadness",        # grief -> sadness
+            17: "happiness",      # joy -> happiness (positive feeling)
+            18: "love",           # love -> love
+            19: "fear",           # nervousness -> fear (anxiety)
+            20: "happiness",      # optimism -> happiness (positive feeling)
+            21: "happiness",      # pride -> happiness (positive feeling)
+            22: "surprise",       # realization -> surprise
+            23: "happiness",      # relief -> happiness (positive feeling)
+            24: "sadness",        # remorse -> sadness
+            25: "sadness",        # sadness -> sadness
+            26: "surprise",       # surprise -> surprise
+            27: "neutral"         # neutral -> neutral
         }
         
         # Common emotion model mappings (e.g., HuggingFace emotion models)
+        # Mapped to our 8 standardized emotions
         self.mapping_common_models = {
-            "joy": "joy",
-            "happiness": "happiness",
-            "sadness": "sadness",
-            "anger": "anger",
-            "fear": "fear",
-            "disgust": "disgust",
-            "surprise": "surprise",
-            "neutral": "neutral",
-            "love": "love",
-            "trust": "trust",
-            "anticipation": "anticipation",
-            "optimism": "optimism",
-            "pessimism": "pessimism"
+            "joy": "happiness",        # joy -> happiness (positive feeling)
+            "happiness": "happiness",  # happiness -> happiness
+            "sadness": "sadness",      # sadness -> sadness
+            "anger": "anger",          # anger -> anger
+            "fear": "fear",            # fear -> fear
+            "disgust": "disgust",      # disgust -> disgust
+            "surprise": "surprise",    # surprise -> surprise
+            "neutral": "neutral",      # neutral -> neutral
+            "love": "love",            # love -> love
+            "trust": "happiness",      # trust -> happiness (positive feeling)
+            "anticipation": "neutral", # anticipation -> neutral (uncertainty)
+            "optimism": "happiness",   # optimism -> happiness (positive feeling)
+            "pessimism": "sadness"     # pessimism -> sadness (negative feeling)
         }
     
     def get_standardized_emotion(self, emotion_input: Union[str, int], 
@@ -295,13 +262,7 @@ class StandardizedEmotions:
         """Get all standardized emotions."""
         return self.ALL_EMOTIONS.copy()
     
-    def get_core_emotions(self) -> List[str]:
-        """Get core emotions only."""
-        return self.CORE_EMOTIONS.copy()
-    
-    def get_extended_emotions(self) -> List[str]:
-        """Get extended emotions only."""
-        return self.EXTENDED_EMOTIONS.copy()
+
 
 
 # Global instance for easy access

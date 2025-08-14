@@ -22,7 +22,7 @@ Currently only emotion classifiers.
 
 ## Emotion Standardization
 
-The BenchmarkEngine includes a comprehensive emotion standardization system that maps emotions from different models and datasets to a consistent set of 32 standardized emotions. This ensures:
+The BenchmarkEngine includes a comprehensive emotion standardization system that maps emotions from different models and datasets to a consistent set of 8 standardized emotions. This ensures:
 
 - **Human-readable output**: Get emotion names instead of just numbers
 - **Consistent comparison**: Compare models using the same emotion labels
