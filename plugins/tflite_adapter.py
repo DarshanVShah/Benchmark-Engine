@@ -3,6 +3,7 @@ TensorFlow Lite Model Adapter
 
 This adapter handles TensorFlow Lite models for benchmarking.
 Supports various input/output types and provides standardized interface.
+Includes emotion standardization for consistent emotion classification.
 """
 
 import importlib.util
@@ -24,6 +25,18 @@ else:
     tf = None
 
 from core import BaseModelAdapter, DataType, ModelType, OutputType
+
+# Import emotion standardization system
+try:
+    from core.emotion_standardization import standardized_emotions, map_emotion_to_standard
+    from core.emotion_converter import convert_emotion_output, get_emotion_analysis
+    EMOTION_STANDARDIZATION_AVAILABLE = True
+except ImportError:
+    EMOTION_STANDARDIZATION_AVAILABLE = False
+    standardized_emotions = None
+    map_emotion_to_standard = None
+    convert_emotion_output = None
+    get_emotion_analysis = None
 
 
 class TensorFlowLiteAdapter(BaseModelAdapter):
@@ -396,6 +409,87 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
         except Exception as e:
             return None
 
+    def convert_to_standardized_emotions(self, model_output: np.ndarray, 
+                                       output_format: str = "auto") -> Dict[str, Any]:
+        """
+        Convert model output to standardized emotions with analysis.
+        
+        Args:
+            model_output: Raw model output
+            output_format: Output format ("probabilities", "logits", "multi_label", or "auto")
+            
+        Returns:
+            Dictionary with standardized emotion results and analysis
+        """
+        if not EMOTION_STANDARDIZATION_AVAILABLE:
+            return {
+                "error": "Emotion standardization not available",
+                "raw_output": model_output.tolist() if model_output is not None else None
+            }
+        
+        try:
+            if model_output is None:
+                return {"error": "No model output to convert"}
+            
+            # Auto-detect output format if not specified
+            if output_format == "auto":
+                if self.output_type == OutputType.PROBABILITIES:
+                    output_format = "probabilities"
+                elif self.output_type == OutputType.LOGITS:
+                    output_format = "logits"
+                else:
+                    output_format = "multi_label"
+            
+            # Convert to standardized emotions
+            result = convert_emotion_output(model_output, output_format, top_k=3)
+            
+            # Add emotion analysis
+            if result and "top_emotion" in result:
+                analysis = get_emotion_analysis(result)
+                result["analysis"] = analysis
+                
+                # Add emotion standardization info
+                result["emotion_standardization"] = {
+                    "available_emotions": len(standardized_emotions.get_all_emotions()),
+                    "emotion_set": standardized_emotions.get_all_emotions(),
+                    "conversion_format": output_format
+                }
+            
+            return result
+            
+        except Exception as e:
+            return {
+                "error": f"Error converting to standardized emotions: {str(e)}",
+                "raw_output": model_output.tolist() if model_output is not None else None
+            }
+
+    def get_emotion_mapping_info(self) -> Dict[str, Any]:
+        """
+        Get information about emotion mapping capabilities.
+        
+        Returns:
+            Dictionary with emotion mapping information
+        """
+        if not EMOTION_STANDARDIZATION_AVAILABLE:
+            return {
+                "emotion_standardization_available": False,
+                "error": "Emotion standardization not available"
+            }
+        
+        try:
+            return {
+                "emotion_standardization_available": True,
+                "standardized_emotions": standardized_emotions.get_all_emotions(),
+                "emotion_categories": standardized_emotions.EMOTION_CATEGORIES,
+                "supported_schemes": ["2018_ec_en", "goemotions", "common_models", "auto"],
+                "total_emotions": len(standardized_emotions.get_all_emotions())
+            }
+        except Exception as e:
+            return {
+                "emotion_standardization_available": False,
+                "error": f"Error getting emotion mapping info: {str(e)}"
+            }
+
     def get_model_info(self) -> Dict[str, Any]:
         """Return metadata about the loaded model."""
         info = {
@@ -410,6 +504,11 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             "task_type": self.task_type,
             "load_error": self._load_error,
         }
+
+        # Add emotion standardization information if available
+        if EMOTION_STANDARDIZATION_AVAILABLE:
+            emotion_info = self.get_emotion_mapping_info()
+            info["emotion_standardization"] = emotion_info
 
         return info
 
