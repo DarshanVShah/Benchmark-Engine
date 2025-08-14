@@ -8,6 +8,8 @@ emotion classification model using our standard benchmark datasets.
 
 import os
 import sys
+import logging
+from typing import Dict, List, Tuple, Optional
 
 # Add the current directory to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -19,38 +21,31 @@ from core.engine import BenchmarkEngine
 from metrics.template_metric import TemplateAccuracyMetric, TemplateMultiLabelMetric
 from plugins.huggingface_adapter import HuggingFaceAdapter
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def test_huggingface_emotion_classifier():
-    """Test HuggingFace emotion classifier with our standard benchmark datasets."""
-    print("HUGGINGFACE EMOTION CLASSIFICATION EXAMPLE")
 
-    # Get available emotion datasets from our standard registry
-    registry = DatasetRegistry()
-    emotion_datasets = registry.get_datasets_for_task(TaskType.EMOTION_CLASSIFICATION)
-
-    if not emotion_datasets:
-        print("No emotion datasets found in standard registry")
-        return False
-
-    print(f"Found {len(emotion_datasets)} standard emotion dataset(s)")
-
-    # Test each available dataset
-    results = {}
-    datasets_tested = 0
-
-    for dataset_config in emotion_datasets:
-        print(f"TESTING DATASET: {dataset_config.name}")
-        print(f"Description: {dataset_config.description}")
-        print(f"Task Type: {dataset_config.config.get('task_type', 'unknown')}")
-        if dataset_config.expected_accuracy_range:
-            print(f"Expected Accuracy: {dataset_config.expected_accuracy_range}")
-
-        # Check dataset availability
-        if not registry.ensure_dataset_available(dataset_config):
-            print(f"Dataset {dataset_config.name} not available")
-            continue
-
+class HuggingFaceEmotionBenchmark:
+    """Class to handle HuggingFace emotion classification benchmarking."""
+    
+    def __init__(self):
+        self.registry = DatasetRegistry()
+        self.results = {}
+        self.datasets_tested = 0
+        
+    def get_emotion_datasets(self) -> List:
+        """Get available emotion datasets from the standard registry."""
+        return self.registry.get_datasets_for_task(TaskType.EMOTION_CLASSIFICATION)
+    
+    def test_dataset(self, dataset_config) -> Optional[float]:
+        """Test a single dataset and return accuracy if successful."""
         try:
+            # Check dataset availability
+            if not self.registry.ensure_dataset_available(dataset_config):
+                logger.warning(f"Dataset {dataset_config.name} not available")
+                return None
+            
             # Create engine for this dataset
             engine = BenchmarkEngine()
             engine.register_adapter("huggingface", HuggingFaceAdapter)
@@ -76,40 +71,28 @@ def test_huggingface_emotion_classifier():
             }
 
             # Load model
-            if not engine.load_model(
-                "huggingface", model_config["model_name"], model_config
-            ):
-                print(f"Failed to load HuggingFace model for {dataset_config.name}")
-                continue
-
+            if not engine.load_model("huggingface", model_config["model_name"], model_config):
+                logger.error(f"Failed to load HuggingFace model for {dataset_config.name}")
+                return None
+            
             # Load dataset
-            if not engine.load_dataset(
-                dataset_class_name, dataset_config.path, dataset_config.config
-            ):
-                print(f"Failed to load dataset {dataset_config.name}")
-                continue
-
+            if not engine.load_dataset(dataset_class_name, dataset_config.path, dataset_config.config):
+                logger.error(f"Failed to load dataset {dataset_config.name}")
+                return None
+            
             # Add appropriate metric
             if is_multi_label:
                 metric = TemplateMultiLabelMetric(metric_type="accuracy", threshold=0.5)
-                print("Using multi-label accuracy metric")
             else:
                 metric = TemplateAccuracyMetric(input_type="class_id")
-                print("Using single-label accuracy metric")
-
+            
             engine.add_metric("template", metric)
 
             # Validate setup
             if not engine.validate_setup():
-                print(f"Setup validation failed for {dataset_config.name}")
-                continue
-
-            print("Setup validation passed")
-            print(f"  - Dataset outputs: {engine.dataset.output_type.value}")
-            print(f"  - Model expects: {engine.model_adapter.input_type.value}")
-            print(f"  - Model outputs: {engine.model_adapter.output_type.value}")
-            print(f"  - Metric expects: {engine.metrics[0].expected_input_type.value}")
-
+                logger.error(f"Setup validation failed for {dataset_config.name}")
+                return None
+            
             # Run benchmark with limited samples for faster testing
             benchmark_results = engine.run_benchmark(num_samples=50)
 
@@ -122,93 +105,66 @@ def test_huggingface_emotion_classifier():
                         break
 
                 if accuracy is not None:
-                    results[dataset_config.name] = accuracy
-                    datasets_tested += 1
-
-                    print(f"Accuracy: {accuracy:.4f}")
-
-                    # Validate against expected range
-                    if dataset_config.expected_accuracy_range:
-                        min_acc, max_acc = dataset_config.expected_accuracy_range
-                        if min_acc <= accuracy <= max_acc:
-                            print(
-                                f"PASS: Accuracy within expected range ({min_acc:.2f}-{max_acc:.2f})"
-                            )
-                        else:
-                            print(
-                                f"WARNING: Accuracy outside expected range ({min_acc:.2f}-{max_acc:.2f})"
-                            )
-                else:
-                    print(f"No accuracy found in results for {dataset_config.name}")
-            else:
-                print(f"No results obtained for {dataset_config.name}")
-
+                    return accuracy
+            
+            return None
+                
         except Exception as e:
-            print(f"Error testing {dataset_config.name}: {e}")
-            continue
+            logger.error(f"Error testing {dataset_config.name}: {e}")
+            return None
+    
+    def run_benchmarks(self) -> Dict[str, float]:
+        """Run benchmarks on all available emotion datasets."""
+        emotion_datasets = self.get_emotion_datasets()
+        
+        if not emotion_datasets:
+            logger.warning("No emotion datasets found in standard registry")
+            return {}
+        
+        logger.info(f"Found {len(emotion_datasets)} standard emotion dataset(s)")
+        
+        # Test each available dataset
+        for dataset_config in emotion_datasets:
+            logger.info(f"Testing dataset: {dataset_config.name}")
+            
+            accuracy = self.test_dataset(dataset_config)
+            if accuracy is not None:
+                self.results[dataset_config.name] = accuracy
+                self.datasets_tested += 1
+                
+                # Validate against expected range
+                if dataset_config.expected_accuracy_range:
+                    min_acc, max_acc = dataset_config.expected_accuracy_range
+                    if min_acc <= accuracy <= max_acc:
+                        logger.info(f"PASS: {dataset_config.name} - Accuracy: {accuracy:.4f} (within expected range)")
+                    else:
+                        logger.warning(f"WARNING: {dataset_config.name} - Accuracy: {accuracy:.4f} (outside expected range {min_acc:.2f}-{max_acc:.2f})")
+                else:
+                    logger.info(f"PASS: {dataset_config.name} - Accuracy: {accuracy:.4f}")
+        
+        return self.results
+    
+    def get_summary(self) -> Dict[str, any]:
+        """Get a summary of the benchmark results."""
+        emotion_datasets = self.get_emotion_datasets()
+        
+        summary = {
+            "total_datasets": len(emotion_datasets),
+            "datasets_tested": self.datasets_tested,
+            "success_rate": self.datasets_tested / len(emotion_datasets) if emotion_datasets else 0,
+            "results": self.results,
+            "all_passed": self.datasets_tested == len(emotion_datasets) if emotion_datasets else False
+        }
+        
+        return summary
 
-    # Summary
-    print("\nCOMPREHENSIVE TEST RESULTS")
 
-    if results:
-        for dataset_name, accuracy in results.items():
-            dataset_config = registry.get_dataset_by_name(dataset_name)
-            if dataset_config and dataset_config.expected_accuracy_range:
-                min_acc, max_acc = dataset_config.expected_accuracy_range
-                status = "PASS" if min_acc <= accuracy <= max_acc else "FAIL"
-                print(
-                    f"{status} {dataset_name}: {accuracy:.4f} (expected: {min_acc:.2f}-{max_acc:.2f})"
-                )
-            else:
-                print(f"PASS {dataset_name}: {accuracy:.4f}")
-
-        print(
-            f"\nSummary: {datasets_tested}/{len(emotion_datasets)} datasets tested successfully"
-        )
-
-        if datasets_tested == len(emotion_datasets):
-            print(
-                "All tests passed! HuggingFace emotion classifier is working correctly."
-            )
-            return True
-        else:
-            print("Some tests failed. Check the error messages above.")
-            return False
-    else:
-        print("No datasets were tested successfully")
-        print("\nFramework Status:")
-        print("Standard datasets are available")
-        print("Model loading works")
-        print("Dataset loading works")
-        print("Benchmark execution needs investigation")
-        return False
-
-
-def test_with_huggingface_datasets():
-    """Test with datasets directly from HuggingFace datasets library."""
-    print("\nTESTING WITH HUGGINGFACE DATASETS")
-
-    try:
-        # Try to import datasets library
-        from datasets import load_dataset
-
-        print("HuggingFace datasets library available")
-
-        # Load a real emotion dataset
-        print("Loading 'emotion' dataset from HuggingFace...")
-        dataset = load_dataset("emotion", split="test")
-
-        print(f"Loaded emotion dataset: {len(dataset)} samples")
-        print(f"Features: {dataset.features}")
-        print("Sample data:")
-        print(dataset[0])
-
-        # Create benchmark engine
-        engine = BenchmarkEngine()
-        engine.register_adapter("huggingface", HuggingFaceAdapter)
-
-        # Model configuration
-        model_config = {
+class HuggingFaceDatasetTester:
+    """Class to test with datasets directly from HuggingFace datasets library."""
+    
+    def __init__(self):
+        self.engine = None
+        self.model_config = {
             "model_name": "j-hartmann/emotion-english-distilroberta-base",
             "device": "cpu",
             "max_length": 128,
@@ -217,77 +173,102 @@ def test_with_huggingface_datasets():
             "task_type": "single-label",
             "is_multi_label": False,
         }
+    
+    def test_huggingface_datasets(self) -> Optional[float]:
+        """Test with datasets directly from HuggingFace datasets library."""
+        try:
+            # Try to import datasets library
+            from datasets import load_dataset
+            
+            # Load a real emotion dataset
+            dataset = load_dataset("emotion", split="test")
+            
+            # Create benchmark engine
+            self.engine = BenchmarkEngine()
+            self.engine.register_adapter("huggingface", HuggingFaceAdapter)
+            
+            # Load model
+            if not self.engine.load_model("huggingface", self.model_config["model_name"], self.model_config):
+                logger.error("Failed to load HuggingFace model")
+                return None
+            
+            # Convert dataset samples to our format
+            test_samples = []
+            for i in range(min(5, len(dataset))):
+                sample = dataset[i]
+                test_samples.append({
+                    "text": sample["text"],
+                    "label": sample["label"]
+                })
+            
+            # Run inference on test samples
+            correct = 0
+            total = len(test_samples)
+            
+            for sample in test_samples:
+                try:
+                    # Use the model adapter directly for testing
+                    prediction = self.engine.model_adapter.predict(sample["text"])
+                    if prediction is not None:
+                        # Simple accuracy check (this is a basic test)
+                        correct += 1
+                except Exception as e:
+                    logger.error(f"Error processing sample: {e}")
+            
+            accuracy = correct / total if total > 0 else 0.0
+            return accuracy
+            
+        except ImportError:
+            logger.error("HuggingFace datasets library not available. Install with: pip install datasets")
+            return None
+        except Exception as e:
+            logger.error(f"Error testing with HuggingFace datasets: {e}")
+            return None
 
-        # Load model
-        if not engine.load_model(
-            "huggingface", model_config["model_name"], model_config
-        ):
-            print("Failed to load HuggingFace model")
-            return False
 
-        # Convert dataset samples to our format
-        test_samples = []
-        for i in range(min(5, len(dataset))):
-            sample = dataset[i]
-            test_samples.append({"text": sample["text"], "label": sample["label"]})
-
-        # Run inference on test samples
-        correct = 0
-        total = len(test_samples)
-
-        for sample in test_samples:
-            try:
-                # Use the model adapter directly for testing
-                prediction = engine.model_adapter.predict(sample["text"])
-                if prediction is not None:
-                    # Simple accuracy check (this is a basic test)
-                    correct += 1
-            except Exception as e:
-                print(f"Error processing sample: {e}")
-
-        accuracy = correct / total if total > 0 else 0.0
-        print(f"Basic test accuracy: {accuracy:.4f} ({correct}/{total})")
-
-        return True
-
-    except ImportError:
-        print("HuggingFace datasets library not available")
-        print("Install with: pip install datasets")
-        return False
-    except Exception as e:
-        print(f"Error testing with HuggingFace datasets: {e}")
-        return False
+def test_huggingface_emotion_classifier() -> Dict[str, any]:
+    """Test HuggingFace emotion classifier with our standard benchmark datasets."""
+    benchmark = HuggingFaceEmotionBenchmark()
+    results = benchmark.run_benchmarks()
+    summary = benchmark.get_summary()
+    
+    return summary
 
 
-def main():
+def test_with_huggingface_datasets() -> Optional[float]:
+    """Test with datasets directly from HuggingFace datasets library."""
+    tester = HuggingFaceDatasetTester()
+    return tester.test_huggingface_datasets()
+
+
+def main() -> bool:
     """Main function to run the HuggingFace emotion classification example."""
-
     try:
         # Test with our standard datasets
-        success = test_huggingface_emotion_classifier()
-
-        if success:
-            print("\nStandard dataset tests passed!")
+        summary = test_huggingface_emotion_classifier()
+        
+        if summary["all_passed"]:
+            logger.info("Standard dataset tests passed!")
         else:
-            print("\nStandard dataset tests had issues")
-
+            logger.warning("Standard dataset tests had issues")
+        
         # Test with HuggingFace datasets library
-        hf_success = test_with_huggingface_datasets()
-
-        if hf_success:
-            print("HuggingFace datasets library test passed!")
+        hf_accuracy = test_with_huggingface_datasets()
+        
+        if hf_accuracy is not None:
+            logger.info(f"HuggingFace datasets library test passed! Accuracy: {hf_accuracy:.4f}")
         else:
-            print("HuggingFace datasets library test failed")
-
-        print("\nAll tests completed!")
-
-        return success or hf_success
-
+            logger.warning("HuggingFace datasets library test failed")
+        
+        logger.info("All tests completed!")
+        
+        return summary["all_passed"] or hf_accuracy is not None
+        
     except KeyboardInterrupt:
-        print("\nTest interrupted by user")
+        logger.info("Test interrupted by user")
         return False
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        logger.error(f"Unexpected error: {e}")
         return False
 
 
