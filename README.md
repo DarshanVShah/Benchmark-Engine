@@ -20,6 +20,17 @@ A standardized benchmarking framework for machine learning models.
 
 Currently only emotion classifiers.
 
+## Emotion Standardization
+
+The BenchmarkEngine includes a comprehensive emotion standardization system that maps emotions from different models and datasets to a consistent set of 32 standardized emotions. This ensures:
+
+- **Human-readable output**: Get emotion names instead of just numbers
+- **Consistent comparison**: Compare models using the same emotion labels
+- **Multi-scheme support**: Works with 2018-E-c-En, GoEmotions, and common model outputs
+- **Confidence scoring**: Understand how reliable the emotion mapping is
+
+See [EMOTION_STANDARDIZATION.md](docs/EMOTION_STANDARDIZATION.md) for detailed documentation and examples.
+
 ## Using Your Own Models
 
 ### 1. Create an Adapter

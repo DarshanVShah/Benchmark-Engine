@@ -496,13 +496,11 @@ class BenchmarkEngine:
         # Find common input shape
         max_length = max(512, max(d.get('num_classes', 10) * 10 for d in datasets))
         
-        # Create universal emotion label mapping (combine all emotion types)
-        universal_emotions = [
-            "anger", "disgust", "fear", "happiness", "sadness", "surprise", "neutral",
-            "love", "joy", "trust", "anticipation", "optimism", "pessimism",
-            "contempt", "embarrassment", "pride", "shame", "guilt", "amusement",
-            "awe", "contentment", "excitement", "relief", "satisfaction"
-        ]
+        # Import standardized emotion system
+        from .emotion_standardization import standardized_emotions
+        
+        # Use standardized emotions from our emotion system
+        universal_emotions = standardized_emotions.get_all_emotions()
         
         # Create standardized input shape
         input_shape = (1, max_length)
