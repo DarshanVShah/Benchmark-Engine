@@ -387,13 +387,13 @@ class BenchmarkEngine:
 
     def run_universal_benchmark(self, num_samples: int = 1000) -> Dict[str, Any]:
         """
-        Run a universal benchmark using random emotion datasets unknown to the user.
+        Run a universal benchmark using real emotion datasets.
         
         This creates a standardized evaluation environment where:
-        1. Engine selects random emotion datasets
+        1. Engine loads real emotion datasets
         2. Engine creates standardized label mapping and input shapes
         3. User adapter must work with engine's standard
-        4. Engine finds common evaluation points across datasets
+        4. Engine evaluates across multiple real datasets
         
         Args:
             num_samples: Number of samples to test per dataset
@@ -405,8 +405,12 @@ class BenchmarkEngine:
             print("Error: No model adapter loaded")
             return None
             
-        # Step 1: Select random emotion datasets
-        emotion_datasets = self._select_random_emotion_datasets()
+        # Step 1: Load real emotion datasets
+        emotion_datasets = self._load_real_emotion_datasets()
+        
+        if not emotion_datasets:
+            print("Error: No emotion datasets available")
+            return None
         
         # Step 2: Create standardized label mapping and input shapes
         standard_config = self._create_standardized_config(emotion_datasets)
@@ -415,27 +419,32 @@ class BenchmarkEngine:
         results = {}
         total_accuracy = 0
         successful_runs = 0
+        failed_datasets = []
         
-        # Simulate having 5 total datasets (3 failing, 2 succeeding)
-        total_datasets = 5
-        failed_datasets = ["ISEAR", "Emotion-Stimulus", "Affective-Text"]
+        print(f"Running universal benchmark on {len(emotion_datasets)} datasets...")
         
         for i, dataset_info in enumerate(emotion_datasets):
+            dataset_name = dataset_info["name"]
+            print(f"\nTesting dataset {i+1}/{len(emotion_datasets)}: {dataset_name}")
+            
             # Load dataset with standardized config
             if self._load_dataset_for_universal_test(dataset_info, standard_config):
                 # Run benchmark
                 dataset_results = self._run_single_dataset_benchmark(num_samples)
                 if dataset_results:
-                    results[f"dataset_{i+1}"] = dataset_results
+                    results[dataset_name] = dataset_results
                     accuracy = dataset_results.get('accuracy', 0)
                     total_accuracy += accuracy
                     successful_runs += 1
+                    print(f"✅ {dataset_name}: {accuracy:.1%} accuracy")
                 else:
                     # Benchmark failed
-                    pass
+                    failed_datasets.append(dataset_name)
+                    print(f"❌ {dataset_name}: Benchmark failed")
             else:
                 # Failed to load dataset
-                pass
+                failed_datasets.append(dataset_name)
+                print(f"❌ {dataset_name}: Failed to load")
         
         # Step 4: Calculate universal metrics
         if results:
@@ -446,7 +455,7 @@ class BenchmarkEngine:
             
             return {
                 "universal_accuracy": avg_accuracy,
-                "datasets_tested": total_datasets,
+                "datasets_tested": len(emotion_datasets),
                 "successful_runs": successful_runs,
                 "failed_datasets": failed_datasets,
                 "dataset_results": results,
@@ -455,41 +464,47 @@ class BenchmarkEngine:
         else:
             return None
     
-    def _select_random_emotion_datasets(self) -> List[Dict[str, Any]]:
-        """Select random emotion datasets for universal testing."""
+    def _load_real_emotion_datasets(self) -> List[Dict[str, Any]]:
+        """Load real emotion datasets for universal testing."""
         available_datasets = [
             {
                 "name": "GoEmotions",
-                "type": "multi-label",
+                "type": "single-label",
                 "path": "benchmark_datasets/localTestSets/goemotions_test.tsv",
                 "num_classes": 27,
-                "num_samples": 1000,  # Estimated sample count
+                "num_samples": 5427,  # Actual sample count
                 "format": "tsv",
                 "text_column": 0,  # First column (text)
                 "label_column": 1,  # Second column (label)
                 "skip_header": False,
-                "delimiter": "\t"
+                "delimiter": "\t",
+                "dataset_class": "GoEmotionsDataset"
             },
             {
-                "name": "2018-Emotion",
+                "name": "2018-E-c-En",
                 "type": "multi-label", 
                 "path": "benchmark_datasets/localTestSets/2018-E-c-En-test-gold.txt",
                 "num_classes": 11,
-                "num_samples": 3259,  # Actual sample count
+                "num_samples": 3261,  # Actual sample count
                 "format": "tsv",
                 "text_column": 1,  # Second column (Tweet)
                 "label_columns": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],  # Emotion columns
                 "skip_header": True,
-                "delimiter": "\t"
+                "delimiter": "\t",
+                "dataset_class": "Emotion2018Dataset"
             }
         ]
         
-        # Randomly select 2-3 datasets (since we only have 2 working ones)
-        import random
-        num_to_select = random.randint(2, min(3, len(available_datasets)))
-        selected = random.sample(available_datasets, num_to_select)
+        # Check which datasets are actually available
+        available = []
+        for dataset in available_datasets:
+            if os.path.exists(dataset["path"]):
+                available.append(dataset)
+                print(f"✅ Found dataset: {dataset['name']} ({dataset['num_samples']} samples)")
+            else:
+                print(f"❌ Dataset not found: {dataset['name']} at {dataset['path']}")
         
-        return selected
+        return available
     
     def _create_standardized_config(self, datasets: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Create standardized configuration that works across all datasets."""
@@ -521,21 +536,40 @@ class BenchmarkEngine:
             if not os.path.exists(dataset_info["path"]):
                 return False
             
-            # Load dataset with template dataset
-            dataset_config = {
-                "file_format": dataset_info["format"],
-                "text_column": dataset_info["text_column"],
-                "label_column": dataset_info.get("label_column"),
-                "label_columns": dataset_info.get("label_columns"),
-                "task_type": dataset_info["type"],
-                "max_length": standard_config["max_length"],
-                "delimiter": dataset_info.get("delimiter", "\t"),
-                "skip_header": dataset_info.get("skip_header", False)
-            }
+            # Use the appropriate dataset class
+            dataset_class = dataset_info.get("dataset_class", "TemplateDataset")
             
-            return self.load_dataset("template", dataset_info["path"], dataset_config)
+            if dataset_class == "GoEmotionsDataset":
+                # Load GoEmotions dataset
+                dataset_config = {
+                    "max_length": standard_config["max_length"]
+                }
+                return self.load_dataset("goemotions", dataset_info["path"], dataset_config)
+                
+            elif dataset_class == "Emotion2018Dataset":
+                # Load 2018-E-c-En dataset
+                dataset_config = {
+                    "max_length": standard_config["max_length"]
+                }
+                return self.load_dataset("emotion2018", dataset_info["path"], dataset_config)
+                
+            else:
+                # Fallback to template dataset
+                dataset_config = {
+                    "file_format": dataset_info["format"],
+                    "text_column": dataset_info["text_column"],
+                    "label_column": dataset_info.get("label_column"),
+                    "label_columns": dataset_info.get("label_columns"),
+                    "task_type": dataset_info["type"],
+                    "max_length": standard_config["max_length"],
+                    "delimiter": dataset_info.get("delimiter", "\t"),
+                    "skip_header": dataset_info.get("skip_header", False)
+                }
+                
+                return self.load_dataset("template", dataset_info["path"], dataset_config)
             
         except Exception as e:
+            print(f"Error loading dataset {dataset_info.get('name', 'unknown')}: {e}")
             return False
     
     def _run_single_dataset_benchmark(self, num_samples: int) -> Dict[str, Any]:
