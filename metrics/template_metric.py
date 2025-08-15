@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 import numpy as np
 
-from core import BaseMetric, OutputType
+from core.interfaces import BaseMetric, OutputType
 
 
 class TemplateAccuracyMetric(BaseMetric):

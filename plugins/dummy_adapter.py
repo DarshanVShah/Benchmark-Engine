@@ -9,7 +9,7 @@ import random
 import time
 from typing import Any, Dict
 
-from core import BaseModelAdapter, DataType, ModelType, OutputType
+from core.interfaces import BaseModelAdapter, DataType, ModelType, OutputType
 
 
 class DummyModelAdapter(BaseModelAdapter):

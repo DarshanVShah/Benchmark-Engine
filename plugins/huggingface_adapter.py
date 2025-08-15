@@ -22,7 +22,7 @@ from transformers import (
     pipeline,
     Pipeline,
 )
-from core import BaseModelAdapter, ModelType, DataType, OutputType
+from core.interfaces import BaseModelAdapter, ModelType, DataType, OutputType
 
 
 class HuggingFaceAdapter(BaseModelAdapter):

@@ -7,7 +7,7 @@ This dataset provides text samples for classification tasks.
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from core import BaseDataset, DataType
+from core.interfaces import BaseDataset, DataType
 
 
 class SimpleTextDataset(BaseDataset):

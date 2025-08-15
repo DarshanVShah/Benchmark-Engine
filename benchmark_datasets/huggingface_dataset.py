@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # Use absolute import to avoid conflict with local datasets package
 import datasets as hf_datasets
 
-from core import BaseDataset, DataType
+from core.interfaces import BaseDataset, DataType
 
 
 class HuggingFaceDataset(BaseDataset):

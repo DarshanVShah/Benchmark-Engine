@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 import numpy as np
 
-from core import BaseMetric
+from core.interfaces import BaseMetric
 
 
 class GenericMetric(BaseMetric):

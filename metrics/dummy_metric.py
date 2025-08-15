@@ -8,7 +8,7 @@ actual ground truth data.
 import random
 from typing import Any, Dict, List
 
-from core import BaseMetric
+from core.interfaces import BaseMetric
 
 
 class DummyAccuracyMetric(BaseMetric):

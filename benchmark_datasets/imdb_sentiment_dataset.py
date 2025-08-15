@@ -9,7 +9,7 @@ import csv
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from core import BaseDataset, DataType
+from core.interfaces import BaseDataset, DataType
 
 
 class IMDBDataset(BaseDataset):
@@ -217,3 +217,4 @@ class IMDBDataset(BaseDataset):
             "negative_samples": negative_count,
             "validation": self.validate_dataset()
         }
+

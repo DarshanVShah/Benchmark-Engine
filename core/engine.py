@@ -7,6 +7,7 @@ Users provide models wrapped in adapters, we provide datasets and evaluation.
 
 import time
 import traceback
+import numpy as np
 from typing import Any, Dict, List, Optional, Type
 
 from .dataset_registry import DatasetRegistry, TaskType
@@ -194,7 +195,16 @@ class BenchmarkEngine:
                 predictions = [result["prediction"] for result in results]
                 targets = [result["target"] for result in results]
 
-                metric_results[metric_name] = metric.calculate(predictions, targets)
+                # Convert predictions to match target format if needed
+                converted_predictions = self._convert_predictions_for_evaluation(predictions, targets)
+                
+                # Debug: Print sample predictions and targets
+                if len(predictions) > 0 and len(targets) > 0:
+                    print(f"Debug - Sample prediction: {predictions[0]}")
+                    print(f"Debug - Sample target: {targets[0]}")
+                    print(f"Debug - Sample converted prediction: {converted_predictions[0]}")
+                
+                metric_results[metric_name] = metric.calculate(converted_predictions, targets)
 
             # Calculate timing metrics
             avg_inference_time = total_time / len(samples_with_targets)
@@ -226,6 +236,80 @@ class BenchmarkEngine:
             print(f"Benchmark failed: {e}")
             traceback.print_exc()
             return None
+
+    def _convert_predictions_for_evaluation(self, predictions: List[Any], targets: List[Any]) -> List[Any]:
+        """Convert model predictions to match target format for evaluation."""
+        try:
+            if not predictions or not targets:
+                return predictions
+            
+            # Check if we need to convert
+            if len(predictions) != len(targets):
+                return predictions
+            
+            # Get the first target to understand the format
+            first_target = targets[0]
+            
+            converted_predictions = []
+            for pred in predictions:
+                if isinstance(pred, list):
+                    pred_array = np.array(pred)
+                    
+                    if isinstance(first_target, int):  # Single label (GoEmotions)
+                        # Convert to single class ID (0-26 for GoEmotions)
+                        if len(pred_array) == 11:  # Model outputs 11 emotions
+                            # Map 11 emotions to GoEmotions 27 classes
+                            converted = self._map_11_to_goemotions(pred_array)
+                        else:
+                            converted = int(np.argmax(pred_array))
+                            
+                    elif isinstance(first_target, list) and len(first_target) == 11:  # Multi-label (2018-E-c-En)
+                        # Convert to 11-dimensional emotion vector
+                        if len(pred_array) == 11:  # Model outputs 11 emotions
+                            # Apply threshold to convert logits to binary
+                            converted = (pred_array > 0).astype(int).tolist()
+                        else:
+                            converted = pred
+                    else:
+                        converted = pred
+                else:
+                    converted = pred
+                
+                converted_predictions.append(converted)
+            
+            return converted_predictions
+            
+        except Exception as e:
+            print(f"Warning: Could not convert predictions: {e}")
+            return predictions
+
+    def _map_standardized_to_2018_emotions(self, standardized_output: List[float]) -> List[int]:
+        """Map standardized emotion outputs back to 2018-E-c-En emotion format."""
+        try:
+            # 2018-E-c-En emotions: [anger, anticipation, disgust, fear, joy, love, optimism, pessimism, sadness, surprise, trust]
+            # Standardized emotions: [anger, disgust, fear, happiness, sadness, surprise, love, neutral]
+            
+            # Create mapping from standardized to 2018 emotions
+            mapping = {
+                0: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # anger -> anger
+                1: [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],  # disgust -> disgust  
+                2: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],  # fear -> fear
+                3: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # happiness -> joy
+                4: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # sadness -> sadness
+                5: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],  # surprise -> surprise
+                6: [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],  # love -> love
+                7: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]   # neutral -> no emotions
+            }
+            
+            # Get the predicted emotion index
+            predicted_idx = int(np.argmax(standardized_output))
+            
+            # Return the corresponding 2018 emotion vector
+            return mapping.get(predicted_idx, [0] * 11)
+            
+        except Exception as e:
+            print(f"Warning: Could not map emotions: {e}")
+            return [0] * 11
 
     def run_comprehensive_benchmark(
         self, task_type: TaskType, num_samples: Optional[int] = None
@@ -544,14 +628,14 @@ class BenchmarkEngine:
                 dataset_config = {
                     "max_length": standard_config["max_length"]
                 }
-                return self.load_dataset("goemotions", dataset_info["path"], dataset_config)
+                return self.load_dataset("GoEmotionsDataset", dataset_info["path"], dataset_config)
                 
             elif dataset_class == "Emotion2018Dataset":
                 # Load 2018-E-c-En dataset
                 dataset_config = {
                     "max_length": standard_config["max_length"]
                 }
-                return self.load_dataset("emotion2018", dataset_info["path"], dataset_config)
+                return self.load_dataset("Emotion2018Dataset", dataset_info["path"], dataset_config)
                 
             else:
                 # Fallback to template dataset

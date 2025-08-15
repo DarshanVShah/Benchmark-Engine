@@ -20,7 +20,7 @@ from sklearn.metrics import (
     recall_score,
 )
 
-from core import BaseMetric
+from core.interfaces import BaseMetric
 
 
 class ClassificationMetric(BaseMetric):

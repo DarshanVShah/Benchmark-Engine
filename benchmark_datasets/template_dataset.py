@@ -10,7 +10,7 @@ import json
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from core import BaseDataset, DataType
+from core.interfaces import BaseDataset, DataType
 
 
 class TemplateDataset(BaseDataset):

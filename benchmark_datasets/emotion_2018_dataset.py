@@ -9,7 +9,7 @@ import csv
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from core import BaseDataset, DataType
+from core.interfaces import BaseDataset, DataType
 
 
 class Emotion2018Dataset(BaseDataset):
@@ -238,3 +238,21 @@ class Emotion2018Dataset(BaseDataset):
             "single_label_samples": single_label_count,
             "validation": self.validate_dataset()
         }
+
+    def get_input_shape(self) -> Tuple[int, ...]:
+        """Return the expected input shape for models."""
+        return (self.max_length,)
+
+    def get_samples(self, num_samples: Optional[int] = None) -> List[Any]:
+        """Get samples from the dataset (for compatibility)."""
+        if num_samples is None:
+            return self.data.copy()
+        return self.data[:num_samples]
+
+    def get_samples_with_targets(
+        self, num_samples: Optional[int] = None
+    ) -> List[Tuple[Any, Any]]:
+        """Get (input, target) pairs for evaluation."""
+        samples = self.get_samples(num_samples)
+        return [(sample["text"], sample["emotion_vector"]) for sample in samples]
+

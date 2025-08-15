@@ -8,7 +8,7 @@ actual dataset files.
 import random
 from typing import Any, Dict, List, Optional, Tuple
 
-from core import BaseDataset
+from core.interfaces import BaseDataset
 
 
 class DummyDataset(BaseDataset):

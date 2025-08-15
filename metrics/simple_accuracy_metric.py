@@ -9,7 +9,7 @@ This metric demonstrates the new architecture where:
 
 from typing import Any, Dict, List
 
-from core import BaseMetric, OutputType
+from core.interfaces import BaseMetric, OutputType
 
 
 class SimpleAccuracyMetric(BaseMetric):

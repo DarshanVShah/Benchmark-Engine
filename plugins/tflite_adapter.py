@@ -24,7 +24,7 @@ else:
     TENSORFLOW_AVAILABLE = False
     tf = None
 
-from core import BaseModelAdapter, DataType, ModelType, OutputType
+from core.interfaces import BaseModelAdapter, DataType, ModelType, OutputType
 
 # Import emotion standardization system
 try:
