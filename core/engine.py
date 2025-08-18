@@ -195,16 +195,10 @@ class BenchmarkEngine:
                 predictions = [result["prediction"] for result in results]
                 targets = [result["target"] for result in results]
 
-                # Convert predictions to match target format if needed
-                converted_predictions = self._convert_predictions_for_evaluation(predictions, targets)
+                # Convert targets to standardized emotions for evaluation
+                standardized_targets = self._convert_targets_to_standardized_emotions(targets)
                 
-                # Debug: Print sample predictions and targets
-                if len(predictions) > 0 and len(targets) > 0:
-                    print(f"Debug - Sample prediction: {predictions[0]}")
-                    print(f"Debug - Sample target: {targets[0]}")
-                    print(f"Debug - Sample converted prediction: {converted_predictions[0]}")
-                
-                metric_results[metric_name] = metric.calculate(converted_predictions, targets)
+                metric_results[metric_name] = metric.calculate(predictions, standardized_targets)
 
             # Calculate timing metrics
             avg_inference_time = total_time / len(samples_with_targets)
@@ -267,7 +261,9 @@ class BenchmarkEngine:
                         # Convert to 11-dimensional emotion vector
                         if len(pred_array) == 11:  # Model outputs 11 emotions
                             # Apply threshold to convert logits to binary
-                            converted = (pred_array > 0).astype(int).tolist()
+                            # Use softmax to get probabilities, then threshold
+                            probabilities = self._logits_to_probabilities(pred_array)
+                            converted = (probabilities > 0.1).astype(int).tolist()  # Threshold at 0.1
                         else:
                             converted = pred
                     else:
@@ -310,6 +306,150 @@ class BenchmarkEngine:
         except Exception as e:
             print(f"Warning: Could not map emotions: {e}")
             return [0] * 11
+
+    def _map_11_to_goemotions(self, emotion_logits: np.ndarray) -> int:
+        """Map 11-dimensional emotion output to GoEmotions class ID."""
+        try:
+            # 2018-E-c-En emotions: [anger, anticipation, disgust, fear, joy, love, optimism, pessimism, sadness, surprise, trust]
+            # GoEmotions has 27 classes, we need to map the 11 emotions to closest matches
+            
+            # Simple mapping: find the emotion with highest confidence and map to GoEmotions
+            emotion_names = ["anger", "anticipation", "disgust", "fear", "joy", "love", "optimism", "pessimism", "sadness", "surprise", "trust"]
+            
+            # Get the predicted emotion
+            predicted_idx = int(np.argmax(emotion_logits))
+            predicted_emotion = emotion_names[predicted_idx]
+            
+            # Map to GoEmotions class IDs (approximate mapping)
+            goemotions_mapping = {
+                "anger": 2,      # anger
+                "anticipation": 0,  # admiration (closest)
+                "disgust": 3,    # disgust
+                "fear": 4,       # fear
+                "joy": 17,       # joy
+                "love": 18,      # love
+                "optimism": 19,  # nervousness (closest)
+                "pessimism": 20, # pride (closest)
+                "sadness": 25,   # sadness
+                "surprise": 26,  # surprise
+                "trust": 1       # amusement (closest)
+            }
+            
+            return goemotions_mapping.get(predicted_emotion, 0)
+            
+        except Exception as e:
+            print(f"Warning: Could not map to GoEmotions: {e}")
+            return 0
+
+    def _logits_to_probabilities(self, logits: np.ndarray) -> np.ndarray:
+        """Convert logits to probabilities using softmax."""
+        try:
+            # Apply softmax: exp(logits) / sum(exp(logits))
+            exp_logits = np.exp(logits - np.max(logits))  # Subtract max for numerical stability
+            probabilities = exp_logits / np.sum(exp_logits)
+            return probabilities
+        except Exception as e:
+            print(f"Warning: Could not convert logits to probabilities: {e}")
+            return logits
+
+    def _convert_targets_to_standardized_emotions(self, targets: List[Any]) -> List[List[float]]:
+        """Convert dataset targets to standardized 8-dimensional emotion format."""
+        try:
+            if not targets:
+                return targets
+            
+            # Get the first target to understand the format
+            first_target = targets[0]
+            standardized_targets = []
+            
+            # Import emotion standardization
+            from .emotion_standardization import map_emotion_to_standard
+            
+            for target in targets:
+                if isinstance(target, int):  # Single label (GoEmotions: 0-26)
+                    # Convert GoEmotions class ID to standardized emotion
+                    standardized = self._goemotions_id_to_standardized(target)
+                elif isinstance(target, list) and len(target) == 11:  # Multi-label (2018-E-c-En)
+                    # Convert 11-dimensional emotion vector to standardized emotions
+                    standardized = self._emotion2018_to_standardized(target)
+                else:
+                    # Unknown format, create neutral emotion
+                    standardized = [0.0] * 8
+                
+                standardized_targets.append(standardized)
+            
+            return standardized_targets
+            
+        except Exception as e:
+            print(f"Warning: Could not convert targets to standardized emotions: {e}")
+            return targets
+
+    def _goemotions_id_to_standardized(self, goemotions_id: int) -> List[float]:
+        """Convert GoEmotions class ID to standardized 8-dimensional emotion."""
+        try:
+            # GoEmotions has 27 classes, map to our 8 standardized emotions
+            # This is a simplified mapping - in practice you'd want a more sophisticated approach
+            
+            # Map GoEmotions emotions to standardized emotions
+            emotion_mapping = {
+                # anger-related
+                2: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # anger -> anger
+                3: [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # disgust -> disgust
+                4: [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0],  # fear -> fear
+                
+                # positive emotions
+                17: [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],  # joy -> happiness
+                18: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],  # love -> love
+                
+                # negative emotions
+                25: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # sadness -> sadness
+                26: [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],  # surprise -> surprise
+                
+                # neutral
+                0: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],  # admiration -> neutral
+                1: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],  # amusement -> neutral
+            }
+            
+            # Return mapped emotion or neutral if not found
+            return emotion_mapping.get(goemotions_id, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+            
+        except Exception as e:
+            print(f"Warning: Could not convert GoEmotions ID {goemotions_id}: {e}")
+            return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]  # neutral
+
+    def _emotion2018_to_standardized(self, emotion_vector: List[int]) -> List[float]:
+        """Convert 2018-E-c-En emotion vector to standardized 8-dimensional emotion."""
+        try:
+            # 2018-E-c-En emotions: [anger, anticipation, disgust, fear, joy, love, optimism, pessimism, sadness, surprise, trust]
+            # Standardized emotions: [anger, disgust, fear, happiness, sadness, surprise, love, neutral]
+            
+            # Map 2018 emotions to standardized emotions
+            standardized = [0.0] * 8
+            
+            if emotion_vector[0]:  # anger
+                standardized[0] = 1.0
+            if emotion_vector[2]:  # disgust
+                standardized[1] = 1.0
+            if emotion_vector[3]:  # fear
+                standardized[2] = 1.0
+            if emotion_vector[4]:  # joy
+                standardized[3] = 1.0
+            if emotion_vector[8]:  # sadness
+                standardized[4] = 1.0
+            if emotion_vector[9]:  # surprise
+                standardized[5] = 1.0
+            if emotion_vector[5]:  # love
+                standardized[6] = 1.0
+            
+            # If no emotions detected, mark as neutral
+            if sum(standardized) == 0:
+                standardized[7] = 1.0
+            
+            return standardized
+            
+        except Exception as e:
+            print(f"Warning: Could not convert 2018-E-c-En emotions: {e}")
+            return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]  # neutral
 
     def run_comprehensive_benchmark(
         self, task_type: TaskType, num_samples: Optional[int] = None
