@@ -14,7 +14,6 @@ from typing import Dict, List, Tuple, Optional
 # Add the current directory to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from benchmark_datasets.goemotions_dataset import GoEmotionsDataset
 from benchmark_datasets.template_dataset import TemplateDataset
 from core.dataset_registry import DatasetRegistry, TaskType
 from core.engine import BenchmarkEngine
