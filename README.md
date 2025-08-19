@@ -51,6 +51,9 @@ class MyModelAdapter(BaseModelAdapter):
 ```
 
 ### 2. Use the Framework
+
+For testing, the tflite example works. Use your own tflite emotion classifier or I can provide one for you.
+
 ```python
 from core.engine import BenchmarkEngine
 
