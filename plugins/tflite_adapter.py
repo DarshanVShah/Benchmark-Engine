@@ -382,75 +382,32 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             model_output: Raw output from model
 
         Returns:
-            Standardized prediction in 8-dimensional emotion format
+            Standardized prediction
         """
         try:
             if model_output is None:
                 return None
 
-            # Convert 11-dimensional model output to standardized 8-dimensional emotions
-            if model_output.shape[-1] == 11:  # Model outputs 11 emotions
-                return self._convert_11_to_standardized_8(model_output)
+            # Convert to standardized format based on output type
+            if self.output_type == OutputType.CLASS_ID:
+                # For classification, return class IDs
+                predicted_class = np.argmax(model_output, axis=-1)
+                return predicted_class.tolist()
+
+            elif self.output_type == OutputType.PROBABILITIES:
+                # For probabilities, return as-is
+                return model_output.tolist()
+
+            elif self.output_type == OutputType.LOGITS:
+                # For logits, return as-is
+                return model_output.tolist()
+
             else:
-                # Fallback to original behavior
-                if self.output_type == OutputType.CLASS_ID:
-                    predicted_class = np.argmax(model_output, axis=-1)
-                    return predicted_class.tolist()
-                elif self.output_type == OutputType.PROBABILITIES:
-                    return model_output.tolist()
-                elif self.output_type == OutputType.LOGITS:
-                    return model_output.tolist()
-                else:
-                    return model_output.tolist()
+                # Default: return as-is
+                return model_output.tolist()
 
         except Exception as e:
-            print(f"Postprocessing failed: {e}")
             return None
-
-    def _convert_11_to_standardized_8(self, model_output: np.ndarray) -> List[float]:
-        """
-        Convert 11-dimensional emotion output to standardized 8-dimensional emotions.
-        
-        Args:
-            model_output: Raw model output with shape (..., 11)
-            
-        Returns:
-            Standardized 8-dimensional emotion vector
-        """
-        try:
-            # Get the emotion with highest confidence
-            emotion_scores = model_output.flatten()  # Flatten to 1D
-            predicted_idx = int(np.argmax(emotion_scores))
-            
-            # 2018-E-c-En emotions: [anger, anticipation, disgust, fear, joy, love, optimism, pessimism, sadness, surprise, trust]
-            # Standardized emotions: [anger, disgust, fear, happiness, sadness, surprise, love, neutral]
-            
-            # Map to standardized emotions
-            standardized = [0.0] * 8
-            
-            if predicted_idx == 0:      # anger
-                standardized[0] = 1.0
-            elif predicted_idx == 2:    # disgust
-                standardized[1] = 1.0
-            elif predicted_idx == 3:    # fear
-                standardized[2] = 1.0
-            elif predicted_idx == 4:    # joy
-                standardized[3] = 1.0
-            elif predicted_idx == 8:    # sadness
-                standardized[4] = 1.0
-            elif predicted_idx == 9:    # surprise
-                standardized[5] = 1.0
-            elif predicted_idx == 5:    # love
-                standardized[6] = 1.0
-            else:                       # anticipation, optimism, pessimism, trust -> neutral
-                standardized[7] = 1.0
-            
-            return standardized
-            
-        except Exception as e:
-            print(f"Error converting to standardized emotions: {e}")
-            # Return neutral emotion as fallback
-            return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
 
     def convert_to_standardized_emotions(self, model_output: np.ndarray, 
                                        output_format: str = "auto") -> Dict[str, Any]:
