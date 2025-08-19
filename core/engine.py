@@ -194,7 +194,10 @@ class BenchmarkEngine:
                 predictions = [result["prediction"] for result in results]
                 targets = [result["target"] for result in results]
 
-                metric_results[metric_name] = metric.calculate(predictions, targets)
+                # Convert targets to match prediction format for proper evaluation
+                converted_targets = self._convert_targets_for_evaluation(targets, predictions)
+                
+                metric_results[metric_name] = metric.calculate(predictions, converted_targets)
 
             # Calculate timing metrics
             avg_inference_time = total_time / len(samples_with_targets)
@@ -226,6 +229,133 @@ class BenchmarkEngine:
             print(f"Benchmark failed: {e}")
             traceback.print_exc()
             return None
+
+    def _convert_targets_for_evaluation(self, targets: List[Any], predictions: List[Any]) -> List[Any]:
+        """
+        Convert dataset targets to match the prediction format for proper evaluation.
+        
+        Args:
+            targets: Original dataset targets
+            predictions: Model predictions (already converted to standardized format)
+            
+        Returns:
+            Converted targets that match the prediction format
+        """
+        try:
+            if not targets or not predictions:
+                return targets
+            
+            # Check if we need to convert
+            if len(targets) != len(predictions):
+                return targets
+            
+            # Get the first prediction to understand the format
+            first_prediction = predictions[0]
+            first_target = targets[0]
+            
+            # If predictions are already in standardized format (8 dimensions), convert targets accordingly
+            # Handle both flat [8] and nested [[8]] prediction formats
+            if isinstance(first_prediction, list):
+                if len(first_prediction) == 8:  # Flat format
+                    prediction_dim = 8
+                elif len(first_prediction) == 1 and isinstance(first_prediction[0], list) and len(first_prediction[0]) == 8:  # Nested format
+                    prediction_dim = 8
+                else:
+                    prediction_dim = 0
+            else:
+                prediction_dim = 0
+                
+            if prediction_dim == 8:
+                converted_targets = []
+                
+                for target in targets:
+                    if isinstance(target, int):  # Single label (GoEmotions: 0-26)
+                        # Convert GoEmotions class ID to standardized 8-dimensional format
+                        converted = self._goemotions_id_to_standardized(target)
+                    elif isinstance(target, list) and len(target) == 11:  # Multi-label (2018-E-c-En)
+                        # Convert 11-dimensional emotion vector to standardized 8-dimensional format
+                        converted = self._emotion2018_to_standardized(target)
+                    else:
+                        # Unknown format, create neutral emotion
+                        converted = [0.0] * 8
+                    
+                    converted_targets.append(converted)
+                
+                return converted_targets
+            
+            # No conversion needed
+            return targets
+            
+        except Exception as e:
+            print(f"Warning: Could not convert targets for evaluation: {e}")
+            return targets
+
+    def _goemotions_id_to_standardized(self, goemotions_id: int) -> List[float]:
+        """Convert GoEmotions class ID to standardized 8-dimensional emotion."""
+        try:
+            # GoEmotions has 27 classes, map to our 8 standardized emotions
+            # This is a simplified mapping - in practice you'd want a more sophisticated approach
+            
+            # Map GoEmotions emotions to standardized emotions
+            emotion_mapping = {
+                # anger-related
+                2: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # anger -> anger
+                3: [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # disgust -> disgust
+                4: [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0],  # fear -> fear
+                
+                # positive emotions
+                17: [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],  # joy -> happiness
+                18: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],  # love -> love
+                
+                # negative emotions
+                25: [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],  # sadness -> sadness
+                26: [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],  # surprise -> surprise
+                
+                # neutral
+                0: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],  # admiration -> neutral
+                1: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],  # amusement -> neutral
+            }
+            
+            # Return mapped emotion or neutral if not found
+            return emotion_mapping.get(goemotions_id, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+            
+        except Exception as e:
+            print(f"Warning: Could not convert GoEmotions ID {goemotions_id}: {e}")
+            return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]  # neutral
+
+    def _emotion2018_to_standardized(self, emotion_vector: List[int]) -> List[float]:
+        """Convert 2018-E-c-En emotion vector to standardized 8-dimensional emotion."""
+        try:
+            # 2018-E-c-En emotions: [anger, anticipation, disgust, fear, joy, love, optimism, pessimism, sadness, surprise, trust]
+            # Standardized emotions: [anger, disgust, fear, happiness, sadness, surprise, love, neutral]
+            
+            # Map 2018 emotions to standardized emotions
+            standardized = [0.0] * 8
+            
+            if emotion_vector[0]:  # anger
+                standardized[0] = 1.0
+            if emotion_vector[2]:  # disgust
+                standardized[1] = 1.0
+            if emotion_vector[3]:  # fear
+                standardized[2] = 1.0
+            if emotion_vector[4]:  # joy
+                standardized[3] = 1.0
+            if emotion_vector[8]:  # sadness
+                standardized[4] = 1.0
+            if emotion_vector[9]:  # surprise
+                standardized[5] = 1.0
+            if emotion_vector[5]:  # love
+                standardized[6] = 1.0
+            
+            # If no emotions detected, mark as neutral
+            if sum(standardized) == 0:
+                standardized[7] = 1.0
+            
+            return standardized
+            
+        except Exception as e:
+            print(f"Warning: Could not convert 2018-E-c-En emotions: {e}")
+            return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]  # neutral
 
     def run_comprehensive_benchmark(
         self, task_type: TaskType, num_samples: Optional[int] = None

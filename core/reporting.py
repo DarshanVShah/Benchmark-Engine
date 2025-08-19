@@ -20,6 +20,10 @@ class BenchmarkJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.integer):
+            return int(obj)
         elif hasattr(obj, "value"):  # Handle enums
             return obj.value
         elif hasattr(obj, "__dict__"):  # Handle custom objects

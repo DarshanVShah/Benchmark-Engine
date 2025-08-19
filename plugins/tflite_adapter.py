@@ -388,6 +388,18 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
             if model_output is None:
                 return None
 
+            # Handle emotion classification specifically for 2018-E-c-En trained models
+            if self.task_type == "multi-label" and self.is_multi_label:
+                # Model was trained on 2018-E-c-En (11 emotions)
+                # Convert to framework's 8 standardized emotions
+                standardized_output = self._convert_2018_emotions_to_standardized(model_output)
+                
+                # For single sample, return the first (and only) standardized emotion vector
+                if len(standardized_output) == 1:
+                    return standardized_output[0]
+                else:
+                    return standardized_output
+
             # Convert to standardized format based on output type
             if self.output_type == OutputType.CLASS_ID:
                 # For classification, return class IDs
@@ -408,6 +420,71 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
 
         except Exception as e:
             return None
+
+    def _convert_2018_emotions_to_standardized(self, model_output: np.ndarray) -> List[List[float]]:
+        """
+        Convert 2018-E-c-En model outputs (11 emotions) to framework standardized emotions (8 emotions).
+        
+        Args:
+            model_output: Raw model output with shape [batch_size, 11] for 2018-E-c-En emotions
+            
+        Returns:
+            List of standardized emotion vectors, each with 8 dimensions
+        """
+        try:
+            # 2018-E-c-En emotions: [anger, anticipation, disgust, fear, joy, love, optimism, pessimism, sadness, surprise, trust]
+            # Framework standardized emotions: [anger, disgust, fear, happiness, sadness, surprise, love, neutral]
+            
+            # Define mapping from 2018-E-c-En to standardized emotions
+            emotion_mapping = {
+                0: 0,  # anger -> anger
+                1: 7,  # anticipation -> neutral (closest match)
+                2: 1,  # disgust -> disgust
+                3: 2,  # fear -> fear
+                4: 3,  # joy -> happiness
+                5: 6,  # love -> love
+                6: 3,  # optimism -> happiness (positive emotion)
+                7: 4,  # pessimism -> sadness (negative emotion)
+                8: 4,  # sadness -> sadness
+                9: 5,  # surprise -> surprise
+                10: 7   # trust -> neutral (closest match)
+            }
+            
+            standardized_outputs = []
+            
+            for batch_idx in range(model_output.shape[0]):
+                # Get the 11-dimensional emotion output for this sample
+                emotion_output = model_output[batch_idx]
+                
+                # Convert to standardized 8-dimensional format
+                standardized_emotion = [0.0] * 8
+                
+                # Apply threshold to determine which emotions are present
+                threshold = 0.1  # Threshold for emotion detection
+                
+                for emotion_idx, confidence in enumerate(emotion_output):
+                    if confidence > threshold:
+                        # Map to standardized emotion index
+                        standardized_idx = emotion_mapping.get(emotion_idx, 7)  # Default to neutral
+                        standardized_emotion[standardized_idx] = confidence
+                
+                # If no emotions detected above threshold, mark as neutral
+                if sum(standardized_emotion) == 0:
+                    standardized_emotion[7] = 1.0
+                
+                # Normalize to ensure sum = 1.0
+                total = sum(standardized_emotion)
+                if total > 0:
+                    standardized_emotion = [e / total for e in standardized_emotion]
+                
+                standardized_outputs.append(standardized_emotion)
+            
+            return standardized_outputs
+            
+        except Exception as e:
+            print(f"Warning: Could not convert 2018-E-c-En emotions: {e}")
+            # Fallback: return neutral emotions
+            return [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]] * model_output.shape[0]
 
     def convert_to_standardized_emotions(self, model_output: np.ndarray, 
                                        output_format: str = "auto") -> Dict[str, Any]:
@@ -430,6 +507,30 @@ class TensorFlowLiteAdapter(BaseModelAdapter):
         try:
             if model_output is None:
                 return {"error": "No model output to convert"}
+            
+            # For 2018-E-c-En trained models, use our custom conversion
+            if self.task_type == "multi-label" and self.is_multi_label:
+                standardized_output = self._convert_2018_emotions_to_standardized(model_output)
+                
+                # Convert the first sample for analysis
+                if standardized_output:
+                    result = convert_emotion_output(standardized_output[0], "probabilities", top_k=3)
+                    
+                    # Add emotion analysis
+                    if result and "top_emotion" in result:
+                        analysis = get_emotion_analysis(result)
+                        result["analysis"] = analysis
+                        
+                        # Add emotion standardization info
+                        result["emotion_standardization"] = {
+                            "available_emotions": len(standardized_emotions.get_all_emotions()),
+                            "emotion_set": standardized_emotions.get_all_emotions(),
+                            "conversion_format": "2018_ec_en_to_standardized",
+                            "original_output_shape": model_output.shape,
+                            "standardized_output_shape": [len(standardized_output), 8]
+                        }
+                    
+                    return result
             
             # Auto-detect output format if not specified
             if output_format == "auto":
